@@ -1,0 +1,9 @@
+name "leek"
+description "A password manager"
+copyright "Copyright © 2016, olivier"
+authors "Olivier Pisano"
+homepage "http://github.com/opisano/leek"
+license "GPL-3.0"
+stringImportPaths "./source"
+
+dependency "gtk-d" version="~>3.2.3"
