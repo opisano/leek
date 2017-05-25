@@ -84,7 +84,7 @@ class FileFormatFactory
 }
 
 
-class LeekWriter : FileWriter
+class LeekWriter: FileWriter
 {
     override void writeToFile(AccountManager manager, string filename)
     {

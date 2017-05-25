@@ -19,6 +19,8 @@
 
 module leek.leek;
 
+import std.array;
+
 
 /**
  * A user account to store the password for.
@@ -48,29 +50,83 @@ interface Account
 interface AccountManager
 {
     /**
-     * Returns the categories. 
+     * Add an Account to this manager and returns it.
      */
-    string[] categories();
+    Account addAccount(string name, string login, string password);
 
     /**
-     * Returns a list of the accounts in a categroy.
+     * Returns the categories managed.
      */
-    Account[] accounts(string category);
+    string[] categories() const;
 }
+
 
 private:
 
 
+/**
+ * Actual implementation of the AccountManager class
+ *
+ */
 class LeekAccountManager : AccountManager
 {
 public:
+    override Account addAccount(string name, string login, string password)
+    {
+        m_accounts[nextId] = AccountImpl(name, login, password);
+        auto proxy = new AccountProxy(this, nextId);
+        nextId++;
+        return proxy;
+    }
 
-};
+    override string[] categories() const
+    {
+        return m_categories.values.dup;
+    }
+
+private:
+    struct AccountImpl
+    {
+        string name;
+        string login;
+        string password;
+    }
+
+    string nameFor(uint id) const 
+    {
+        return m_accounts[id].name;
+    }
+
+    string loginFor(uint id) const 
+    {
+        return m_accounts[id].login;
+    }
+
+    string passwordFor(uint id) const
+    {
+        return m_accounts[id].password;
+    }
+
+    uint nextId;
+    AccountImpl[uint] m_accounts;
+    string[uint] m_categories;
+}
+
+unittest
+{
+    auto lam = new LeekAccountManager;
+    Account account = lam.addAccount("Amazon", "JohnDoe", "password123");
+    assert (account !is null);
+    assert (account.name == "Amazon");
+    assert (account.login == "JohnDoe");
+    assert (account.password == "password123");
+}
+
 
 class AccountProxy : Account
 {
 public:
-    this(AccountManager manager, uint id)
+    this(LeekAccountManager manager, uint id)
     {
         this.manager = manager;
         this.id = id;
@@ -78,60 +134,24 @@ public:
 
     override string name() const
     {
+        return manager.nameFor(id);
     }
 
     override string login() const
     {
+        return manager.loginFor(id);
     }
 
     override string password() const
     {
+        return manager.passwordFor(id);
     }
 
 private:
-    AccountManager manager;
+
+    LeekAccountManager manager;
     const uint id;
 }
 
-class ConcreteAccount: Account
-{
-public:
-    this(string accountName, string userLogin, string userPassword)
-    {
-        m_accountName = accountName;
-        m_userLogin = userLogin;
-        m_userPassword = userPassword;
-    }
-
-    override string name() const 
-    {
-        return m_accountName;
-    }
-
-    override string login() const 
-    {
-        return m_userLogin;
-    }
-
-    override string password() const 
-    {
-        return m_userPassword;
-    }
-
-    void setName(string newName)
-    {
-        m_accountName = newName;
-    }
-
-    void setPassword(string newPassword)
-    {
-        m_userPassword = userPassword;
-    }
-
-private:
-    string m_accountName;
-    string m_userLogin;
-    string m_userPassword;
-}
 
 
