@@ -19,7 +19,9 @@
 
 module leek.leek;
 
+import std.algorithm;
 import std.array;
+import std.range;
 
 
 /**
@@ -54,6 +56,12 @@ interface AccountManager
      */
     Account addAccount(string name, string login, string password);
 
+
+    /**
+     * Get an Account by its name
+     */
+    Account getAccount(string name);
+
     /**
      * Returns the categories managed.
      */
@@ -73,10 +81,24 @@ class LeekAccountManager : AccountManager
 public:
     override Account addAccount(string name, string login, string password)
     {
+        auto found = m_accounts.values.find!(a => a.name == name);
+        if (!found.empty)
+            throw new Exception("An account with the same name exists");
+
         m_accounts[nextId] = AccountImpl(name, login, password);
         auto proxy = new AccountProxy(this, nextId);
         nextId++;
         return proxy;
+    }
+
+    override Account getAccount(string name)
+    {
+        auto found = m_accounts.byPair.find!(p => p[1].name == name);
+        if (!found.empty)
+        {
+            return new AccountProxy(this, found.front[0]);
+        }
+        return null;
     }
 
     override string[] categories() const
