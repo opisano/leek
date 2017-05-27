@@ -53,7 +53,12 @@ interface Account
      * Throws:
      *     AccountException if this account was removed.
      */
-    string password();
+    string password() const;
+
+    /**
+     * The categories this account belongs to.
+     */
+    InputRange!Category categories();
 }
 
 
@@ -403,7 +408,6 @@ public:
     }
 
 private:
-
     /**
      * The structure that is really holding account information.
      */
@@ -412,6 +416,7 @@ private:
         string name;
         string login;
         string password;
+        uint[] categories;
     }
 
     /**
@@ -474,6 +479,22 @@ private:
         }
     }
 
+    InputRange!Category categoriesFor(uint id)
+    {
+        auto pimpl = id in m_accounts;
+        if (pimpl is null)
+        {
+            throw new AccountException("Invalid account");
+        }
+
+        Category[] cats;
+        foreach (cat_id; pimpl.categories) 
+        {
+            cats ~= new CategoryProxy(this, cat_id);
+        }
+        return inputRangeObject(cats);
+    }
+
     uint nextId;
     AccountImpl[uint] m_accounts;
     string[uint] m_categories;
@@ -520,8 +541,12 @@ public:
         return manager.accountPasswordFor(id);
     }
 
-private:
+    override InputRange!Category categories()
+    {
+        return manager.categoriesFor(id);
+    }
 
+private:
     LeekAccountManager manager;
     immutable uint id;
 }
