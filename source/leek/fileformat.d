@@ -19,7 +19,7 @@
 
 module leek.fileformat;
 
-import leek.leek;
+import leek.account;
 
 /**
  * Signals a file format is not supported.

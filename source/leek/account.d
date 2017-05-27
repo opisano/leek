@@ -17,7 +17,7 @@
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-module leek.leek;
+module leek.account;
 
 import std.algorithm;
 import std.array;
@@ -106,7 +106,7 @@ private:
 
 
 /**
- * Actual implementation of the AccountManager class
+ * Actual implementation of the AccountManager interface
  *
  */
 class LeekAccountManager : AccountManager
