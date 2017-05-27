@@ -509,6 +509,9 @@ private:
         }
     }
 
+    /**
+     * Returns the categories the account with given id belongs to.
+     */
     InputRange!Category categoriesFor(uint id)
     {
         auto pimpl = id in m_accounts;
@@ -522,6 +525,9 @@ private:
                     .inputRangeObject;
     }
 
+    /**
+     * Add a Category to an account.
+     */
     void addCategoryFor(uint accountId, uint categoryId)
     {
         auto pimpl = accountId in m_accounts;
@@ -536,6 +542,9 @@ private:
         }
     }
 
+    /**
+     * Removes a category for an account.
+     */
     void removeCategoryFor(uint accountId, uint categoryId)
     {
         auto pimpl = accountId in m_accounts;
@@ -549,15 +558,11 @@ private:
                                              .countUntil(categoryId));
     }
 
-
+    /**
+     * Returns a list of accounts belonging to a category.
+     */
     InputRange!Account accountsWithCategory(uint categoryId)
     {
-        auto pimpl = categoryId in m_categories;
-        if (pimpl is null)
-        {
-            throw new AccountException("Invalid category");
-        }
-
         return m_accounts.byPair
                          .filter!(p => p[1].categories
                                            .canFind(categoryId))
