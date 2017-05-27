@@ -120,6 +120,18 @@ interface AccountManager
     void rename(Account account, string newName);
 
     /**
+     * Change the password of an account.
+     *
+     * Params:
+     *     account  = The account to change the password.
+     *     password = The new password of the account.
+     *
+     * Throws:
+     *     AccountException if the account is invalid.
+     */
+    void changePassword(Account account, string password);
+
+    /**
      * Remove an account.
      *
      * Params:
@@ -152,9 +164,9 @@ interface AccountManager
  */
 class AccountException : Exception
 {
-    public this(string name)
+    public this(string message)
     {
-        super(name);
+        super(message);
     }
 }
 
@@ -247,6 +259,32 @@ public:
         auto account = lam.getAccount("amazon");
         lam.rename(account, "Amazon");
         assert (account.name == "Amazon");
+    }
+
+    override void changePassword(Account account, string password)
+    {
+        auto proxy = cast(AccountProxy) account;
+        if (proxy is null)
+        {
+            throw new AccountException("Invalid account");
+        }
+
+        auto pimpl = proxy.id in m_accounts;
+        if (pimpl is null)
+        {
+            throw new AccountException("Invalid account");
+        }
+
+        pimpl.password = password;
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        auto account = lam.addAccount("amazon", "JohnDoe", "password123");
+        assert (account.password == "password123");
+        lam.changePassword(account, "password123456");
+        assert (account.password == "password123456");
     }
 
     override void remove(Account account)
