@@ -419,7 +419,9 @@ public:
         {
             arr ~= new CategoryProxy(this, id);
         }
-        return inputRangeObject(arr);
+        return m_categories.byKey
+                           .map!(i => cast(Category)new CategoryProxy(this, i))
+                           .inputRangeObject;
     }
 
     unittest
@@ -515,12 +517,9 @@ private:
             throw new AccountException("Invalid account");
         }
 
-        Category[] cats;
-        foreach (cat_id; pimpl.categories) 
-        {
-            cats ~= new CategoryProxy(this, cat_id);
-        }
-        return inputRangeObject(cats);
+        return pimpl.categories
+                    .map!(i => cast(Category) new CategoryProxy(this, i))
+                    .inputRangeObject;
     }
 
     void addCategoryFor(uint accountId, uint categoryId)
@@ -559,12 +558,11 @@ private:
             throw new AccountException("Invalid category");
         }
 
-        return inputRangeObject(m_accounts.byPair
-                                          .filter!(p => p[1].categories
-                                                            .canFind(categoryId))
-                                          .map!(p => new AccountProxy(this, p[0]))
-                                          .map!(ap => cast(Account)ap)
-                                          .array);
+        return m_accounts.byPair
+                         .filter!(p => p[1].categories
+                                           .canFind(categoryId))
+                         .map!(p => cast(Account)new AccountProxy(this, p[0]))
+                         .inputRangeObject;
     }
 
     uint nextId;
@@ -660,7 +658,7 @@ unittest
     acc.removeCategory(entertainment);
     assert (!acc.categories.canFind!(c => c.name == "entertainment"));
     assert (acc.categories.canFind!(c => c.name == "streaming"));
-
+    assert (streaming.accounts.canFind!(a => a.name == "Netflix"));
 }
 
 /**
