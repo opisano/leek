@@ -76,6 +76,11 @@ interface AccountManager
     void rename(Account account, string newName);
 
     /**
+     * Remove an account.
+     */
+    void remove(Account);
+
+    /**
      * Add a new category to this manager and returns it. 
      */
     Category addCategory(string name);
@@ -186,6 +191,32 @@ public:
         auto account = lam.getAccount("amazon");
         lam.rename(account, "Amazon");
         assert (account.name == "Amazon");
+    }
+
+    override void remove(Account account)
+    in
+    {
+        assert (account !is null);
+    }
+    body
+    {
+        auto proxy = cast(AccountProxy)account;
+        if (proxy is null)
+        {
+            throw new AccountException("Invalid account.");
+        }
+
+        m_accounts.remove(proxy.id);
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        lam.addAccount("amazon", "JohnDoe", "password123");
+        auto account = lam.getAccount("amazon");
+        lam.remove(account);
+        assert (lam.getAccount("amazon") is null);
+        assertThrown!AccountException(lam.rename(account, "Amazon"));
     }
 
     override Category addCategory(string name)
