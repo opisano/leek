@@ -262,6 +262,16 @@ public:
     }
 
     override void changePassword(Account account, string password)
+    in
+    {
+        assert (account !is null);
+        assert (password !is null);
+    }
+    out
+    {
+        assert (account.password == password);
+    }
+    body
     {
         auto proxy = cast(AccountProxy) account;
         if (proxy is null)
