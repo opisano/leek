@@ -150,13 +150,21 @@ interface AccountManager
      */
     Category addCategory(string name);
 
-
+    /**
+     * Remove a category.
+     * 
+     * Params:
+     *     category = The category to remove. 
+     *
+     * Throws:
+     *     AccountException if category is invalid.
+     */
     void remove(Category category);
 
     /**
      * Returns the categories managed.
      */
-    Category[] categories();
+    InputRange!Category categories();    
 }
 
 /**
@@ -371,12 +379,27 @@ public:
         assertThrown!AccountException(cat1.name);
     }
 
-    override Category[] categories()
+    override InputRange!Category categories()
     {
-        auto cats = m_categories.keys
-                                .map!(i => new CategoryProxy(this, i))
-                                .array;
-        return cast(Category[]) cats;
+        Category[] arr;
+        foreach (uint id; m_categories.byKey)
+        {
+            arr ~= new CategoryProxy(this, id);
+        }
+        return inputRangeObject(arr);
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager();
+        lam.addCategory("Leisure");
+        lam.addCategory("Business");
+        lam.addCategory("Entertainment");
+
+        auto categories = lam.categories.array;
+        assert (categories.canFind!(c => c.name == "Leisure"));
+        assert (categories.canFind!(c => c.name == "Business"));
+        assert (categories.canFind!(c => c.name == "Entertainment"));
     }
 
 private:
