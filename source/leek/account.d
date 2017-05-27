@@ -47,7 +47,7 @@ interface Account
 
 
 /**
- * A category an account may belong to. 
+ * A category an account may belong to, like a tag. 
  */
 interface Category
 {
@@ -61,27 +61,63 @@ interface Category
 interface AccountManager
 {
     /**
-     * Add an Account to this manager and returns it.
+     * Add an Account to this manager and returns it. If an account with the
+     * same name already exists, an AccountException will be thrown.
+     *
+     * Params:
+     *     name =     The account name, identifying it (must be unique). 
+     *     login =    The user login 
+     *     password = The user password.
+     *
+     * Returns:
+     *     A object implementing the Account interface representing the newly
+     *     created account.
+     * 
+     * Throws:
+     *     AccountException if an account with the same name already exists.
      */
     Account addAccount(string name, string login, string password);
 
     /**
-     * Get an Account by its name
+     * Get an Account by its name.
+     *
+     * Params:
+     *     name = The account name, identifying it.
+     *
+     * Returns:
+     *     The Account object with the name passed as parameter, or null if 
+     *     no account with this name exists. 
      */
     Account getAccount(string name);
 
     /**
-     * Change the name of an account. 
+     * Change the name of an account.
+     *
+     * Params:
+     *     account = The account to rename.
+     *     newName = The new name of the account.
+     *
+     * Throws:
+     *     AccountException if account is invalid.
      */
     void rename(Account account, string newName);
 
     /**
      * Remove an account.
+     *
+     * Params:
+     *     account = The account to remove.
+     *
+     * Throws:
+     *     AccountException if account is invalid. 
      */
-    void remove(Account);
+    void remove(Account account);
 
     /**
-     * Add a new category to this manager and returns it. 
+     * Add a new category to this manager and returns it.
+     *
+     * Params:
+     *     name = The name of the category to add.
      */
     Category addCategory(string name);
 
@@ -252,6 +288,10 @@ public:
     }
 
 private:
+
+    /**
+     * The structure that is really holding account information.
+     */
     struct AccountImpl
     {
         string name;
@@ -259,21 +299,33 @@ private:
         string password;
     }
 
+    /**
+     * Returns the name of the account identified by id.
+     */
     string accountNameFor(uint id) const 
     {
         return m_accounts[id].name;
     }
 
+    /**
+     * Returns the login of the account identified by id.
+     */
     string accountLoginFor(uint id) const 
     {
         return m_accounts[id].login;
     }
 
+    /**
+     * Returns the password of the account identified by id.
+     */
     string accountPasswordFor(uint id) const
     {
         return m_accounts[id].password;
     }
 
+    /**
+     * Returns the name of the category identified by id.
+     */
     string categoryNameFor(uint id) const 
     {
         return m_categories[id];
@@ -285,11 +337,25 @@ private:
 }
 
 
-
-
+/**
+ * Implementation of the Account interface. These are the objects atually 
+ * returned by the LeekAccountManager class. 
+ *
+ * This class only contains a pointer to the LeekAccountManager that 
+ * created it an a numerical identifier to the account referred to. 
+ */
 class AccountProxy : Account
 {
 public:
+
+    /**
+     * Constructs an AccountProxy object. 
+     *
+     * Params:
+     *     manager = The LeekAccountManager instance creating this object.
+     *     id      = The numerical id identifying the account this proxy 
+     *               refers to.
+     */
     this(LeekAccountManager manager, uint id)
     {
         this.manager = manager;
@@ -317,11 +383,25 @@ private:
     immutable uint id;
 }
 
-
+/**
+ * Implementation of the Category interface. These are the objects atually 
+ * returned by the LeekAccountManager class. 
+ *
+ * This class only contains a pointer to the LeekAccountManager that 
+ * created it an a numerical identifier to the Category referred to. 
+ */
 class CategoryProxy : Category
 {
 public:
-    this(LeekAccountManager manager, uint id)
+    /**
+     * Constructs an CategoryProxy object. 
+     *
+     * Params:
+     *     manager = The LeekAccountManager instance creating this object.
+     *     id      = The numerical id identifying the category this proxy 
+     *               refers to.
+     */
+this(LeekAccountManager manager, uint id)
     {
         this.manager = manager;
         this.id = id;
