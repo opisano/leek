@@ -19,6 +19,8 @@
 
 module leek.account;
 
+import core.exception;
+
 import std.algorithm;
 import std.array;
 import std.exception;
@@ -31,16 +33,25 @@ interface Account
 {
     /**
      * Name of the account (e.g. 'Amazon')
+     *
+     * Throws:
+     *     AccountException if this account was removed. 
      */
     string name() const;
 
     /**
      * Login of the account.
+     *
+     * Throws:
+     *     AccountException if this account was removed.
      */
     string login() const;
 
     /**
      * Password of the account.
+     *
+     * Throws:
+     *     AccountException if this account was removed.
      */
     string password();
 }
@@ -51,6 +62,12 @@ interface Account
  */
 interface Category
 {
+    /**
+     * Name of the category
+     *
+     * Throws:
+     *     AccountException if this category was removed.
+     */
     string name() const;
 }
 
@@ -120,6 +137,9 @@ interface AccountManager
      *     name = The name of the category to add.
      */
     Category addCategory(string name);
+
+
+    void remove(Category category);
 
     /**
      * Returns the categories managed.
@@ -279,6 +299,30 @@ public:
         assert (cat1.name == cat2.name);
     }
 
+    override void remove(Category category)
+    in
+    {
+        assert (category !is null);
+    }
+    body
+    {
+        auto proxy = cast(CategoryProxy)category;
+        if (proxy is null)
+        {
+            throw new AccountException("Invalid category");
+        }
+
+        m_categories.remove(proxy.id);
+    }
+    
+    unittest
+    {
+        auto lam = new LeekAccountManager();
+        auto cat1 = lam.addCategory("1");
+        lam.remove(cat1);
+        assertThrown!AccountException(cat1.name);
+    }
+
     override Category[] categories()
     {
         auto cats = m_categories.keys
@@ -304,7 +348,14 @@ private:
      */
     string accountNameFor(uint id) const 
     {
-        return m_accounts[id].name;
+        try
+        {
+            return m_accounts[id].name;
+        }
+        catch (RangeError)
+        {
+            throw new AccountException("Invalid account");
+        }
     }
 
     /**
@@ -312,7 +363,14 @@ private:
      */
     string accountLoginFor(uint id) const 
     {
-        return m_accounts[id].login;
+        try
+        {
+            return m_accounts[id].login;
+        }
+        catch (RangeError)
+        {
+            throw new AccountException("Invalid account");
+        }
     }
 
     /**
@@ -320,7 +378,14 @@ private:
      */
     string accountPasswordFor(uint id) const
     {
-        return m_accounts[id].password;
+        try
+        {
+            return m_accounts[id].password;
+        }
+        catch (RangeError)
+        {
+            throw new AccountException("Invalid account");
+        }
     }
 
     /**
@@ -328,7 +393,14 @@ private:
      */
     string categoryNameFor(uint id) const 
     {
-        return m_categories[id];
+        try
+        {
+            return m_categories[id];
+        }
+        catch (RangeError)
+        {
+            throw new AccountException("Invalid category");
+        }
     }
 
     uint nextId;
