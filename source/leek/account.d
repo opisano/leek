@@ -96,6 +96,12 @@ interface Category
      *     AccountException if this category was removed.
      */
     string name() const;
+
+    /**
+     * Returns the accounts belonging to this category.
+     *
+     */
+    InputRange!Account accounts();
 }
 
 
@@ -544,6 +550,23 @@ private:
                                              .countUntil(categoryId));
     }
 
+
+    InputRange!Account accountsWithCategory(uint categoryId)
+    {
+        auto pimpl = categoryId in m_categories;
+        if (pimpl is null)
+        {
+            throw new AccountException("Invalid category");
+        }
+
+        return inputRangeObject(m_accounts.byPair
+                                          .filter!(p => p[1].categories
+                                                            .canFind(categoryId))
+                                          .map!(p => new AccountProxy(this, p[0]))
+                                          .map!(ap => cast(Account)ap)
+                                          .array);
+    }
+
     uint nextId;
     AccountImpl[uint] m_accounts;
     string[uint] m_categories;
@@ -667,6 +690,12 @@ this(LeekAccountManager manager, uint id)
     override string name() const 
     {
         return manager.categoryNameFor(id);
+    }
+
+
+    override InputRange!Account accounts()
+    {
+        return manager.accountsWithCategory(id);
     }
 
 private:
