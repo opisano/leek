@@ -24,7 +24,6 @@ import std.array;
 import std.exception;
 import std.range;
 
-
 /**
  * A user account to store the password for.
  */
@@ -66,11 +65,15 @@ interface AccountManager
      */
     Account addAccount(string name, string login, string password);
 
-
     /**
      * Get an Account by its name
      */
     Account getAccount(string name);
+
+    /**
+     * Change the name of an account. 
+     */
+    void rename(Account account, string newName);
 
     /**
      * Add a new category to this manager and returns it. 
@@ -106,7 +109,7 @@ class LeekAccountManager : AccountManager
 public:
     override Account addAccount(string name, string login, string password)
     {
-        auto found = m_accounts.values.find!(a => a.name == name);
+        auto found = m_accounts.byValue.find!(a => a.name == name);
         if (!found.empty)
             throw new AccountException("An account with the same name exists");
 
@@ -146,6 +149,43 @@ public:
         assert (account.name == "Amazon");
         assert (account.login == "JohnDoe");
         assert (lam.getAccount("Google") is null);
+    }
+
+    override void rename(Account account, string newName)
+    in
+    {
+        assert (account !is null);
+        assert (newName !is null);
+        assert (newName.length > 0);
+    }
+    out
+    {
+        assert (account.name == newName);
+    }
+    body
+    {
+        auto proxy = cast(AccountProxy)account;
+        if (proxy is null)
+        {
+            throw new AccountException("Invalid account.");
+        }
+
+        auto pimpl = proxy.id in m_accounts;
+        if (pimpl is null)
+        {
+            throw new AccountException("Invalid account.");
+        }
+
+        pimpl.name = newName;
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        lam.addAccount("amazon", "JohnDoe", "password123");
+        auto account = lam.getAccount("amazon");
+        lam.rename(account, "Amazon");
+        assert (account.name == "Amazon");
     }
 
     override Category addCategory(string name)
