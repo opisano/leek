@@ -21,6 +21,7 @@ module leek.leek;
 
 import std.algorithm;
 import std.array;
+import std.exception;
 import std.range;
 
 
@@ -42,7 +43,16 @@ interface Account
     /**
      * Password of the account.
      */
-    string password() const;
+    string password();
+}
+
+
+/**
+ * A category an account may belong to. 
+ */
+interface Category
+{
+    string name() const;
 }
 
 
@@ -63,11 +73,26 @@ interface AccountManager
     Account getAccount(string name);
 
     /**
+     * Add a new category to this manager and returns it. 
+     */
+    Category addCategory(string name);
+
+    /**
      * Returns the categories managed.
      */
-    string[] categories() const;
+    Category[] categories();
 }
 
+/**
+ * Deals with errors concerning accounts. 
+ */
+class AccountException : Exception
+{
+    public this(string name)
+    {
+        super(name);
+    }
+}
 
 private:
 
@@ -83,12 +108,23 @@ public:
     {
         auto found = m_accounts.values.find!(a => a.name == name);
         if (!found.empty)
-            throw new Exception("An account with the same name exists");
+            throw new AccountException("An account with the same name exists");
 
         m_accounts[nextId] = AccountImpl(name, login, password);
         auto proxy = new AccountProxy(this, nextId);
         nextId++;
         return proxy;
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        Account account = lam.addAccount("Amazon", "JohnDoe", "password123");
+        assert (account !is null);
+        assert (account.name == "Amazon");
+        assert (account.login == "JohnDoe");
+        assert (account.password == "password123");
+        assertThrown!AccountException(lam.addAccount("Amazon", "John", "doe"));
     }
 
     override Account getAccount(string name)
@@ -101,9 +137,47 @@ public:
         return null;
     }
 
-    override string[] categories() const
+    unittest
     {
-        return m_categories.values.dup;
+        auto lam = new LeekAccountManager;
+        lam.addAccount("Amazon", "JohnDoe", "password123");
+        auto account = lam.getAccount("Amazon");
+        assert (account !is null);
+        assert (account.name == "Amazon");
+        assert (account.login == "JohnDoe");
+        assert (lam.getAccount("Google") is null);
+    }
+
+    override Category addCategory(string name)
+    {
+        auto found = m_categories.byPair.find!(p => p[1] == name);
+        if (!found.empty)
+        {
+            return new CategoryProxy(this, found.front[0]);
+        }
+        
+        m_categories[nextId] = name;
+        auto cat = new CategoryProxy(this, nextId);
+        nextId++;
+        return cat;
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager();
+        auto cat1 = lam.addCategory("1");
+        assert (cat1 !is null);
+        assert (cat1.name == "1");
+        auto cat2 = lam.addCategory("1");
+        assert (cat1.name == cat2.name);
+    }
+
+    override Category[] categories()
+    {
+        auto cats = m_categories.keys
+                                .map!(i => new CategoryProxy(this, i))
+                                .array;
+        return cast(Category[]) cats;
     }
 
 private:
@@ -114,19 +188,24 @@ private:
         string password;
     }
 
-    string nameFor(uint id) const 
+    string accountNameFor(uint id) const 
     {
         return m_accounts[id].name;
     }
 
-    string loginFor(uint id) const 
+    string accountLoginFor(uint id) const 
     {
         return m_accounts[id].login;
     }
 
-    string passwordFor(uint id) const
+    string accountPasswordFor(uint id) const
     {
         return m_accounts[id].password;
+    }
+
+    string categoryNameFor(uint id) const 
+    {
+        return m_categories[id];
     }
 
     uint nextId;
@@ -134,15 +213,7 @@ private:
     string[uint] m_categories;
 }
 
-unittest
-{
-    auto lam = new LeekAccountManager;
-    Account account = lam.addAccount("Amazon", "JohnDoe", "password123");
-    assert (account !is null);
-    assert (account.name == "Amazon");
-    assert (account.login == "JohnDoe");
-    assert (account.password == "password123");
-}
+
 
 
 class AccountProxy : Account
@@ -156,24 +227,45 @@ public:
 
     override string name() const
     {
-        return manager.nameFor(id);
+        return manager.accountNameFor(id);
     }
 
     override string login() const
     {
-        return manager.loginFor(id);
+        return manager.accountLoginFor(id);
     }
 
     override string password() const
     {
-        return manager.passwordFor(id);
+        return manager.accountPasswordFor(id);
     }
 
 private:
 
     LeekAccountManager manager;
-    const uint id;
+    immutable uint id;
 }
+
+
+class CategoryProxy : Category
+{
+public:
+    this(LeekAccountManager manager, uint id)
+    {
+        this.manager = manager;
+        this.id = id;
+    }
+
+    override string name() const 
+    {
+        return manager.categoryNameFor(id);
+    }
+
+private:
+    LeekAccountManager manager;
+    immutable uint id;
+}
+
 
 
 
