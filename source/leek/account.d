@@ -59,6 +59,28 @@ interface Account
      * The categories this account belongs to.
      */
     InputRange!Category categories();
+
+    /**
+     * Add a category to this account.
+     *
+     * Params:
+     *     category = The category to add.
+     *
+     * Throws:
+     *     AccountException if category is invalid.
+     */
+    void addCategory(Category category);
+
+    /**
+     * Removes a category from this account.
+     *
+     * Params:
+     *     category = the category to remove.
+     *
+     * Throws:
+     *     AccountException if category is invalid.
+     */
+    void removeCategory(Category category);
 }
 
 
@@ -495,6 +517,33 @@ private:
         return inputRangeObject(cats);
     }
 
+    void addCategoryFor(uint accountId, uint categoryId)
+    {
+        auto pimpl = accountId in m_accounts;
+        if (pimpl is null)
+        {
+            throw new AccountException("Invalid account");
+        }
+
+        if (!pimpl.categories.canFind(categoryId))
+        {
+            pimpl.categories ~= categoryId;
+        }
+    }
+
+    void removeCategoryFor(uint accountId, uint categoryId)
+    {
+        auto pimpl = accountId in m_accounts;
+        if (pimpl is null)
+        {
+            throw new AccountException("Invalid account");
+        }
+
+        pimpl.categories = pimpl.categories
+                                .remove(pimpl.categories
+                                             .countUntil(categoryId));
+    }
+
     uint nextId;
     AccountImpl[uint] m_accounts;
     string[uint] m_categories;
@@ -546,9 +595,49 @@ public:
         return manager.categoriesFor(id);
     }
 
+    override void addCategory(Category category) 
+    {
+        auto proxy = cast(CategoryProxy)category;
+        if (proxy is null)
+        {
+            throw new AccountException("Invalid category");
+        }
+
+        manager.addCategoryFor(id, proxy.id);
+    }
+
+    override void removeCategory(Category category)
+    {
+        auto proxy = cast(CategoryProxy) category;
+        if (proxy is null)
+        {
+            throw new AccountException("Invalid category");
+        }
+
+        manager.removeCategoryFor(id, proxy.id);
+    }
+
 private:
     LeekAccountManager manager;
     immutable uint id;
+}
+
+unittest 
+{
+    auto lam = new LeekAccountManager;
+    auto acc = lam.addAccount("Netflix", "johndoe", "password123");
+    auto entertainment = lam.addCategory("entertainment");
+    auto streaming = lam.addCategory("streaming");
+    acc.addCategory(entertainment);
+    acc.addCategory(streaming);
+    auto e = cast(CategoryProxy)entertainment;
+    auto s = cast(CategoryProxy)streaming;
+    assert (acc.categories.canFind!(c => c.name == "entertainment"));
+    assert (acc.categories.canFind!(c => c.name == "streaming"));
+    acc.removeCategory(entertainment);
+    assert (!acc.categories.canFind!(c => c.name == "entertainment"));
+    assert (acc.categories.canFind!(c => c.name == "streaming"));
+
 }
 
 /**
