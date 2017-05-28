@@ -114,16 +114,6 @@ final class NoCandidates : Candidates
 final class LowerCase: Candidates
 {
 public:
-
-    /**
-     * Constructs a LowerCase object without decorating 
-     * another Candidates.
-     */
-    this() 
-    {
-        m_wrapped = new NoCandidates;
-    }
-
     /**
      * Constructs a LowerCase object, decorating another 
      * Candidates
@@ -156,16 +146,6 @@ private:
 final class UpperCase: Candidates
 {
 public:
-
-    /**
-     * Constructs a UpperCase object without decorating 
-     * another Candidates.
-     */
-    this() 
-    {
-        m_wrapped = new NoCandidates;
-    }
-
     /**
      * Constructs a LowerCase object, decorating another 
      * Candidates
@@ -198,16 +178,6 @@ private:
 final class Digit: Candidates
 {
 public:
-
-    /**
-     * Constructs a Digit object without decorating 
-     * another Candidates.
-     */
-    this() 
-    {
-        m_wrapped = new NoCandidates;
-    }
-
     /**
      * Constructs a Digit object, decorating another 
      * Candidates
@@ -235,16 +205,6 @@ private:
 final class Special : Candidates
 {
 public:
-
-    /**
-     * Constructs a Special object without decorating 
-     * another Candidates.
-     */
-    this() 
-    {
-        m_wrapped = new NoCandidates;
-    }
-
     /**
      * Constructs a Special object, decorating another 
      * Candidates
