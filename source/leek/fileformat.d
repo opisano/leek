@@ -29,6 +29,7 @@ import leek.account;
 import std.algorithm;
 import std.array;
 import std.bitmanip;
+import std.range;
 import std.stdio;
 
 /**
@@ -176,6 +177,102 @@ private:
         return aes256_key;
     } 
 
+    /**
+     * Encodes a CategoryRecord as an InputRange of ubyte.
+     */
+    static auto encodeCategoryRecord(CategoryRecord record) pure
+    {
+        enum category = 0xCA1E6074;
+        return chain(encodeInteger(category),
+                     encodeInteger(record.id),
+                     encodeString(record.name));
+    }
+
+    unittest 
+    {
+        auto cat = CategoryRecord(0x42, "Music");
+        assert (equal(encodeCategoryRecord(cat),
+                      [0x74, 0x60, 0x1E, 0xCA, 
+                       0x42, 0x00, 0x00, 0x00,
+                       0x05, 0x00, 0x00, 0x00,
+                       0x4d, 0x75, 0x73, 0x69, 0x63]));
+    }
+
+    /**
+     * Encodes an AccountRecord as an InputRange of ubyte.
+     */
+    static auto encodeAccountRecord(AccountRecord record) pure
+    {
+        enum account = 0xACC0947;
+        return chain(encodeInteger(account),
+                     encodeInteger(record.id), 
+                     encodeString(record.name),
+                     encodeString(record.login),
+                     encodeString(record.password),
+                     encodeInteger(cast(uint)record.categories.length),
+                     joiner(record.categories.map!(x => encodeInteger(x))));
+                     
+    }
+
+    unittest 
+    {
+        auto acc = AccountRecord(0x23, "Netflix", "JohnDoe", "password",
+                                 [0x13, 0x18]);
+        assert (equal(encodeAccountRecord(acc),
+                      [0x47, 0x09, 0xCC, 0x0A, 
+                       0x23, 0x00, 0x00, 0x00,
+                       0x07, 0x00, 0x00, 0x00,
+                       0x4e, 0x65, 0x74, 0x66, 0x6c, 0x69, 0x78,
+                       0x07, 0x00, 0x00, 0x00,
+                       0x4a, 0x6f, 0x68, 0x6e, 0x44, 0x6f, 0x65,
+                       0x08, 0x00, 0x00, 0x00,
+                       0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64,
+                       0x02, 0x00, 0x00, 0x00,
+                       0x13, 0x00, 0x00, 0x00,
+                       0x18, 0x00, 0x00, 0x00]));
+    }
+
+    /**
+     * Encodes a uint as an InputRange of ubyte, in little endian 
+     * order.
+     */
+    static auto encodeInteger(uint n) pure
+    {
+        struct IntRange
+        {
+            uint value;
+            uint count = 0;
+            bool empty() const { return count > 3; }
+            ubyte front() { return (value >> (count * 8)) & 0xFF; }
+            void popFront() { count++; }
+        }
+
+        return IntRange(n);
+    }
+
+    unittest 
+    {
+        assert (equal(encodeInteger(0xDEADBEEF),
+                      [0xEF, 0xBE, 0xAD, 0xDE]));
+    }
+
+    /**
+     * Encodes a string as an InputRange of ubyte.
+     */
+    static auto encodeString(string s) pure
+    {
+        if (s.length > uint.max)
+            s = s[0 .. uint.max];
+
+        return chain(encodeInteger(cast(uint)s.length),
+                     cast(ubyte[])s.dup);
+    }
+
+    unittest 
+    {
+        assert (equal(encodeString("ABBA"),
+                      [0x04, 0x00, 0x00, 0x00, 0x41, 0x42, 0x42, 0x41]));
+    }
 
     immutable string masterPassword;
 }

@@ -26,6 +26,7 @@ import std.array;
 import std.exception;
 import std.range;
 
+
 /**
  * A user account to store the password for.
  */
@@ -431,10 +432,35 @@ public:
         lam.addCategory("Business");
         lam.addCategory("Entertainment");
 
-        auto categories = lam.categories.array;
-        assert (categories.canFind!(c => c.name == "Leisure"));
-        assert (categories.canFind!(c => c.name == "Business"));
-        assert (categories.canFind!(c => c.name == "Entertainment"));
+        assert (lam.categories.canFind!(c => c.name == "Leisure"));
+        assert (lam.categories.canFind!(c => c.name == "Business"));
+        assert (lam.categories.canFind!(c => c.name == "Entertainment"));
+    }
+
+package:
+
+    /**
+     * Returns an input range of CategoryRecord for storing this 
+     * AccountManager state.
+     */
+    auto categoryRecords() 
+    {
+        return m_categories.byPair
+                           .map!(p => CategoryRecord(p[0], p[1]));
+    }
+
+    /**
+     * Returns an input range of AccountRecord for storing this 
+     * AccountManager state.
+     */
+    auto accountRecords()
+    {
+        return m_accounts.byPair
+                         .map!(p => AccountRecord(p[0],
+                                                  p[1].name,
+                                                  p[1].login,
+                                                  p[1].password,
+                                                  p[1].categories));
     }
 
 private:
@@ -454,14 +480,12 @@ private:
      */
     string accountNameFor(uint id) const 
     {
-        try
+        auto p_account = id in m_accounts;
+        if (p_account)
         {
-            return m_accounts[id].name;
+            return p_account.name;
         }
-        catch (RangeError)
-        {
-            throw new AccountException("Invalid account");
-        }
+        throw new AccountException("Invalid account");
     }
 
     /**
@@ -469,14 +493,12 @@ private:
      */
     string accountLoginFor(uint id) const 
     {
-        try
+        auto p_account = id in m_accounts;
+        if (p_account)
         {
-            return m_accounts[id].login;
+            return p_account.login;
         }
-        catch (RangeError)
-        {
-            throw new AccountException("Invalid account");
-        }
+        throw new AccountException("Invalid account");
     }
 
     /**
@@ -484,14 +506,12 @@ private:
      */
     string accountPasswordFor(uint id) const
     {
-        try
+        auto p_account = id in m_accounts;
+        if (p_account)
         {
-            return m_accounts[id].password;
+            return p_account.password;
         }
-        catch (RangeError)
-        {
-            throw new AccountException("Invalid account");
-        }
+        throw new AccountException("Invalid account");
     }
 
     /**
@@ -499,14 +519,12 @@ private:
      */
     string categoryNameFor(uint id) const 
     {
-        try
+        auto p_category = id in m_categories;
+        if (p_category)
         {
-            return m_categories[id];
+            return *p_category;
         }
-        catch (RangeError)
-        {
-            throw new AccountException("Invalid category");
-        }
+        throw new AccountException("Invalid category");
     }
 
     /**
@@ -706,6 +724,25 @@ private:
     immutable uint id;
 }
 
+package:
 
+/**
+ * Used for Category I/O
+ */
+struct CategoryRecord
+{
+    uint id;
+    string name;
+}
 
-
+/**
+ * Used for Account I/O
+ */
+struct AccountRecord
+{
+    uint id;
+    string name;
+    string login;
+    string password;
+    uint[] categories;
+}
