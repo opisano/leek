@@ -455,12 +455,11 @@ package:
      */
     auto accountRecords()
     {
-        return m_accounts.byPair
-                         .map!(p => AccountRecord(p[0],
-                                                  p[1].name,
-                                                  p[1].login,
-                                                  p[1].password,
-                                                  p[1].categories));
+        return m_accounts.byValue
+                         .map!(a => AccountRecord(a.name,
+                                                  a.login,
+                                                  a.password,
+                                                  a.categories));
     }
 
 private:
@@ -740,7 +739,6 @@ struct CategoryRecord
  */
 struct AccountRecord
 {
-    uint id;
     string name;
     string login;
     string password;

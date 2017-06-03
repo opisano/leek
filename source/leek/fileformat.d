@@ -205,22 +205,19 @@ private:
     {
         enum account = 0xACC0947;
         return chain(encodeInteger(account),
-                     encodeInteger(record.id), 
                      encodeString(record.name),
                      encodeString(record.login),
                      encodeString(record.password),
                      encodeInteger(cast(uint)record.categories.length),
                      joiner(record.categories.map!(x => encodeInteger(x))));
-                     
     }
 
     unittest 
     {
-        auto acc = AccountRecord(0x23, "Netflix", "JohnDoe", "password",
+        auto acc = AccountRecord("Netflix", "JohnDoe", "password",
                                  [0x13, 0x18]);
         assert (equal(encodeAccountRecord(acc),
                       [0x47, 0x09, 0xCC, 0x0A, 
-                       0x23, 0x00, 0x00, 0x00,
                        0x07, 0x00, 0x00, 0x00,
                        0x4e, 0x65, 0x74, 0x66, 0x6c, 0x69, 0x78,
                        0x07, 0x00, 0x00, 0x00,
@@ -243,7 +240,7 @@ private:
             uint value;
             uint count = 0;
             bool empty() const { return count > 3; }
-            ubyte front() { return (value >> (count * 8)) & 0xFF; }
+            ubyte front() const { return (value >> (count * 8)) & 0xFF; }
             void popFront() { count++; }
         }
 
