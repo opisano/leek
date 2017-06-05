@@ -29,6 +29,7 @@ import leek.account;
 import std.algorithm;
 import std.array;
 import std.bitmanip;
+import std.exception;
 import std.range;
 import std.stdio;
 
@@ -36,6 +37,17 @@ import std.stdio;
  * Signals a file format is not supported.
  */
 class UnsupportedFileFormatException : Exception
+{
+    public this(string message)
+    {
+        super(message);
+    }
+}
+
+/**
+ * Signals the master password is incorrect.
+ */
+class WrongPasswordException : Exception
 {
     public this(string message)
     {
@@ -59,45 +71,263 @@ interface FileReader
     AccountManager readFromFile(string filename);
 }
 
-
 /**
- * Provides the interface for writing the passwords to a file.
+ * Implementation of the FileReader interface for the Leek 1 
+ * file format. 
  */
-interface FileWriter
-{
-    void writeToFile(AccountManager manager, string filename);
-}
-
-/+
-/**
- * Provides the interface for creating the file format I/O objects.
- */
-class FileFormatFactory
+class LeekReader : FileReader
 {
     /**
-     * Create a FileReader object for the file format passed as a parameter.
-     */
-    FileReader createReader(string format)
+     * Create a LeekReader.
+     *
+     * Params:
+     *     masterPassword = the master password.
+     */ 
+    this(string masterPassword)
     {
+        this.masterPassword = masterPassword;
+    }
+
+    public override AccountManager readFromFile(string filename)
+    {
+        auto f = File(filename, "rb");
+        if (!readFormatAndVersion(f))
+        {
+            throw new UnsupportedFileFormatException("Unknown format");
+        }
+        
+        if (!checkPassword(f))
+        {
+            throw new WrongPasswordException("incorrect password");
+        }
+
+        auto salt = readSalt(f);
+        auto key = generateKey(salt, masterPassword);
+        auto pipe = new Pipe(getCipher("AES-256/CBC", 
+                                       generateKey(salt, masterPassword), 
+                                       DECRYPTION));
+
         return null;
     }
 
-    /**
-     * Create a FileWriter object for the file format passed as a parameter.
-     */
-    FileWriter createWriter(string format)
+private:
+    static bool readFormatAndVersion(ref File f)
     {
-        if (format == "leek")
-            return new LeekWriter;
-
-        throw new UnsupportedFileFormatException(format); 
+        ubyte[8] buffer;
+        auto bytesRead = f.rawRead(buffer[]);
+        return buffer[] == [76, 69, 69, 75, 0, 0, 0, 1];
     }
-}+/
+
+    /**
+     * Reads the master password hash from the file and returns 
+     * true if it corresponds to this object master password, 
+     * false otherwise.
+     * 
+     * Params:
+     *     f = An open file to read data from.
+     *
+     * Returns:
+     *     true if the master password and the hash match, false otherwise.
+     */ 
+    bool checkPassword(ref File f)
+    {
+        ubyte[60] buffer;
+        auto bytesRead = f.rawRead(buffer[]);
+        return checkBcrypt(masterPassword, bytesRead.to!string);
+    }
+
+    /**
+     * Reads the secret key salt from the file. 
+     *
+     * Params:
+     *     f = An open file to read data from.
+     *
+     * Returns:
+     *     Some random bytes, used for salt for the secret key.
+     */
+    ubyte[] readSalt(ref File f)
+    {
+        return f.rawRead(new ubyte[64]);
+    }
+
+    static void decodeCategories(R)(ref R r, LeekAccountManager mgr)
+            if (isInputRange!R && is(ubyte : ElementType!R))
+    {
+        enum category_id = 0xCA1E6074;
+        while (r.take.decodeInteger == category_id)
+        {
+            auto cat = r.decodeCategory;
+            mgr.addCategory(cat.name);
+        }
+    }
+
+    static void decodeAccounts(R)(ref R r, LeekAccountManager mgr)
+            if (isInputRange!R && is(ubyte == ElementType!R))
+    {
+        enum account_id = 0xACC0947;
+        while (r.take.decodeAccount == account_id)
+        {
+            auto acc = r.decodeAccount;
+            mgr.addAccount(acc.name, acc.login, acc.password);
+            foreach (id; acc.categories)
+            {
+                // TODO 
+            }
+        }
+    }
+
+    static AccountRecord decodeAccount(R)(ref R r)
+            if (isInputRange!R && is(ubyte == ElementType!R))
+    {
+        r = r.drop(uint.sizeof); // skip AccountRecord identifier.
+        auto name = decodeString(r);
+        auto login = decodeString(r);
+        auto password = decodeString(r);
+        auto cat_count = decodeInteger(r);
+        uint[] ids;
+        foreach (i; 0 .. cat_count)
+        {
+            ids ~= decodeInteger(r);
+        }
+        return AccountRecord(name, login, password, ids);
+    }
+
+    unittest
+    {
+        ubyte[] arr = cast(ubyte[])[0x47, 0x09, 0xCC, 0x0A, 
+                                    0x07, 0x00, 0x00, 0x00,
+                                    0x4e, 0x65, 0x74, 0x66, 0x6c, 0x69, 0x78,
+                                    0x07, 0x00, 0x00, 0x00,
+                                    0x4a, 0x6f, 0x68, 0x6e, 0x44, 0x6f, 0x65,
+                                    0x08, 0x00, 0x00, 0x00,
+                                    0x70, 0x61, 0x73, 0x73, 
+                                    0x77, 0x6f, 0x72, 0x64,
+                                    0x02, 0x00, 0x00, 0x00,
+                                    0x13, 0x00, 0x00, 0x00,
+                                    0x18, 0x00, 0x00, 0x00];
+        auto ar = decodeAccount(arr);
+        assert (ar.name == "Netflix");
+        assert (ar.login == "JohnDoe");
+        assert (ar.password == "password");
+        assert (ar.categories == [0x13, 0x18]);
+    }
+
+    static CategoryRecord decodeCategory(R)(ref R r)
+            if (isInputRange!R && is(ubyte ==  ElementType!R))
+    {
+        r = r.drop(uint.sizeof); // skip CategoryRecord identifier.
+        uint id = decodeInteger(r);
+        string name = decodeString(r);
+        return CategoryRecord(id, name);
+    }
+
+    unittest 
+    {
+        auto arr = cast(ubyte[])[0x74, 0x60, 0x1E, 0xCA, 
+                                 0x42, 0x00, 0x00, 0x00,
+                                 0x05, 0x00, 0x00, 0x00,
+                                 0x4d, 0x75, 0x73, 0x69, 0x63];
+        auto cat = decodeCategory(arr);
+        assert(cat.id == 0x42);
+        assert(cat.name == "Music");
+        assert(arr.empty);
+    }
+
+    /**
+     * Decodes a string from an InputRange of ubyte 
+     */
+    static string decodeString(R)(ref R r)
+            if (isInputRange!R && is(ubyte ==  ElementType!R))
+    {
+        uint length = decodeInteger(r);
+        char[] buffer = cast(char[])r.take(length).array;
+        r = r.drop(length);
+        return assumeUnique(buffer);
+    }
+
+    unittest
+    {
+        ubyte[] arr = cast(ubyte[])[0x04, 0x00, 0x00, 0x00, 
+                                    0x41, 0x42, 0x42, 0x41,
+                                    0x04, 0x00, 0X00, 0x00, 
+                                    0x54, 0x4F, 0x54, 0x4F];
+        assert(decodeString(arr) == "ABBA");
+        assert(decodeString(arr) == "TOTO");
+    }
+
+    /**
+     * Decodes an integer from an Input range of ubyte.
+     */
+    static uint decodeInteger(R)(ref R r)
+            if (isInputRange!R && is(ubyte == ElementType!R))
+    {
+        uint result;
+        foreach (i; 0 .. 4)
+        {
+            if (r.empty)
+                throw new StdioException("Missing data");
+            result |= r.front << (i * 8);
+            r.popFront;
+        }
+        return result;
+    }
+
+    unittest
+    {
+        ubyte[] arr = [0xBE, 0xBA, 0xFE, 0xCA,
+                       0xEF, 0xBE, 0xAD, 0xDE,
+                       0xCA, 0xCA];
+        assert (decodeInteger(arr) == 0xCAFEBABE);
+        assert (decodeInteger(arr) == 0xDEADBEEF);
+        assertThrown!StdioException(decodeInteger(arr));
+    }
+
+    string masterPassword;
+}
 
 
+/**
+ * Provides the interface for writing the passwords to a file.
+ *
+ * Params:
+ *     manager = contains the passwords and categories to write.
+ *     filename = the name of the file to write. 
+ */
+interface FileWriter
+{
+    /**
+     * Writes the content of an AccountManager to a file.
+     *
+     * The AccountManager instance passed as first parameter must 
+     * be a LeekAccountManager, or an UnsupportedFileFormatException
+     * will be thrown.  
+     *
+     * Params:
+     *     manager = contains the passwords and categories to write.
+     *     filename = the name of the file to write. 
+     * 
+     * Throws:
+     *     UnsupportedFileFormatException if manager is not a 
+     *     LeekAccountManager.
+     */
+    void writeToFile(AccountManager manager, string filename);
+}
+
+/**
+ * Implementation of the FileWriter interface for the Leek 1
+ * file format.
+ */
 class LeekWriter: FileWriter
 {
 public:
+
+    /**
+     * Constructs a LeekWriter instance.
+     *
+     * Params:
+     *     masterPassword = The master password from which secret keys
+     *                      will be derived to encrypt files written.
+     */
     this(string masterPassword)
     {
         this.masterPassword = masterPassword;
@@ -105,13 +335,39 @@ public:
 
     override void writeToFile(AccountManager manager, string filename)
     {
+        auto mgr = cast(LeekAccountManager) manager;
+        if (mgr is null)
+        {
+            throw new UnsupportedFileFormatException("Incorrect manager");
+        }
+
         auto f = File(filename, "wb");
-        f.write(signatureAndVersion());
-        f.write(hashedPassword());
+        f.rawWrite(signatureAndVersion());
+        f.rawWrite(hashedPassword());
         auto salt = generateSalt();
-        f.write(salt);
-        auto key = generateKey(salt);
-        // TODO serialize and encrypt manager content.
+        f.rawWrite(salt);
+        auto iv = InitializationVector(new AutoSeededRNG, 16); 
+        auto pipe = Pipe(getCipher("AES-256/CBC", 
+                                   generateKey(salt, masterPassword), 
+                                   iv, 
+                                   ENCRYPTION));
+        auto data = encodeAccountManager(mgr).array();
+        scope (exit)
+            clearMem(data.ptr, data.length);
+
+        pipe.startMsg();
+        pipe.write(data);
+        pipe.endMsg();
+        f.rawWrite(pipe.toString());
+    }
+
+    unittest 
+    {
+        auto man = createAccountManager();
+        man.addCategory("Entertainment");
+        man.addAccount("Netflix", "johndoe", "password123");
+        auto filewriter = new LeekWriter("mysecret");
+        filewriter.writeToFile(man, "/home/olivier/test.bin");
     }
 
 private:
@@ -158,23 +414,17 @@ private:
     }
 
     /**
-     * Generate an AES256 key from master password and 
-     * some salt.
-     *
-     * Params:
-     *     salt = The salt to use
-     *
-     * Returns:
-     *     The AES-256 key from master password and salt.
-     */
-    auto generateKey(ubyte[] salt)
+     * Encodes the content of a LeekAccountManager as a stream of 
+     * bytes.
+     */ 
+    static auto encodeAccountManager(LeekAccountManager mgr) pure
     {
-        PBKDF pbkdf = getPbkdf("PBKDF2(SHA-512)");
-        auto rng = new AutoSeededRNG;
-        auto aes256_key = pbkdf.deriveKey(32, masterPassword,
-                                          salt.ptr, salt.length,
-                                          10_000);
-        return aes256_key;
+        return chain(mgr.categoryRecords
+                        .map!(cr => encodeCategoryRecord(cr))
+                        .joiner,
+                     mgr.accountRecords
+                        .map!(ar => encodeAccountRecord(ar))
+                        .joiner);
     } 
 
     /**
@@ -274,4 +524,23 @@ private:
     immutable string masterPassword;
 }
 
+/**
+ * Generate an AES256 key from master password and 
+ * some salt.
+ *
+ * Params:
+ *     salt = The salt to use
+ *
+ * Returns:
+ *     The AES-256 key from master password and salt.
+ */
+auto generateKey(ubyte[] salt, string masterPassword)
+{
+    PBKDF pbkdf = getPbkdf("PBKDF2(SHA-512)");
+    auto rng = new AutoSeededRNG;
+    auto aes256_key = pbkdf.deriveKey(32, masterPassword,
+                                      salt.ptr, salt.length,
+                                      10_000);
+    return aes256_key;
+}
 

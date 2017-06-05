@@ -212,7 +212,12 @@ class AccountException : Exception
     }
 }
 
-private:
+AccountManager createAccountManager()
+{
+    return new LeekAccountManager;
+}
+
+package:
 
 
 /**
@@ -222,6 +227,7 @@ private:
 class LeekAccountManager : AccountManager
 {
 public:
+
     override Account addAccount(string name, string login, string password)
     {
         auto found = m_accounts.byValue.find!(a => a.name == name);
@@ -436,6 +442,7 @@ public:
         assert (lam.categories.canFind!(c => c.name == "Business"));
         assert (lam.categories.canFind!(c => c.name == "Entertainment"));
     }
+
 
 package:
 

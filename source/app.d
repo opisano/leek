@@ -17,8 +17,18 @@
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
+import botan;
+
+import std.stdio;
 
 void main(string[] args)
 {
-
+    try
+    {
+        LibraryInitializer init;
+    }
+    catch(Exception e)
+    {
+        writeln(e.msg);
+    }
 }
