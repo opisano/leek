@@ -32,6 +32,7 @@ import std.bitmanip;
 import std.exception;
 import std.range;
 import std.stdio;
+import std.traits;
 
 /**
  * Signals a file format is not supported.
@@ -103,11 +104,27 @@ class LeekReader : FileReader
 
         auto salt = readSalt(f);
         auto key = generateKey(salt, masterPassword);
+        ubyte[256] buffer;
+        auto iv = f.rawRead(buffer[0 .. 16]);
         auto pipe = new Pipe(getCipher("AES-256/CBC", 
-                                       generateKey(salt, masterPassword), 
+                                       generateKey(salt, masterPassword),
+                                       OctetString(iv.ptr, iv.length),
                                        DECRYPTION));
 
-        return null;
+        auto bytesRead = f.rawRead(buffer[]);
+        pipe.startMsg();
+        while (bytesRead.length)
+        {
+            pipe.write(bytesRead);
+            bytesRead = f.rawRead(buffer[]);
+        }
+        pipe.endMsg();
+        auto data = cast(immutable(ubyte)[])pipe.toString();
+        auto mgr = new LeekAccountManager;
+        decodeCategories(data, mgr);
+        decodeAccounts(data, mgr);
+
+        return mgr;
     }
 
 private:
@@ -133,7 +150,7 @@ private:
     {
         ubyte[60] buffer;
         auto bytesRead = f.rawRead(buffer[]);
-        return checkBcrypt(masterPassword, bytesRead.to!string);
+        return checkBcrypt(masterPassword, cast(string)bytesRead);
     }
 
     /**
@@ -151,33 +168,29 @@ private:
     }
 
     static void decodeCategories(R)(ref R r, LeekAccountManager mgr)
-            if (isInputRange!R && is(ubyte : ElementType!R))
+            if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         enum category_id = 0xCA1E6074;
-        while (r.take.decodeInteger == category_id)
+        while (!r.empty && decodeInteger(take(r, 4)) == category_id)
         {
-            auto cat = r.decodeCategory;
+            auto cat = decodeCategory(r);
             mgr.addCategory(cat.name);
         }
     }
 
     static void decodeAccounts(R)(ref R r, LeekAccountManager mgr)
-            if (isInputRange!R && is(ubyte == ElementType!R))
+            if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         enum account_id = 0xACC0947;
-        while (r.take.decodeAccount == account_id)
+        while (!r.empty && decodeInteger(take(r, 4)) == account_id)
         {
-            auto acc = r.decodeAccount;
-            mgr.addAccount(acc.name, acc.login, acc.password);
-            foreach (id; acc.categories)
-            {
-                // TODO 
-            }
+            auto record = decodeAccount(r);
+            mgr.addAccount(record);
         }
     }
 
     static AccountRecord decodeAccount(R)(ref R r)
-            if (isInputRange!R && is(ubyte == ElementType!R))
+            if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         r = r.drop(uint.sizeof); // skip AccountRecord identifier.
         auto name = decodeString(r);
@@ -213,7 +226,7 @@ private:
     }
 
     static CategoryRecord decodeCategory(R)(ref R r)
-            if (isInputRange!R && is(ubyte ==  ElementType!R))
+            if (isInputRange!R && is(ubyte ==  Unqual!(ElementType!R)))
     {
         r = r.drop(uint.sizeof); // skip CategoryRecord identifier.
         uint id = decodeInteger(r);
@@ -237,7 +250,7 @@ private:
      * Decodes a string from an InputRange of ubyte 
      */
     static string decodeString(R)(ref R r)
-            if (isInputRange!R && is(ubyte ==  ElementType!R))
+            if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         uint length = decodeInteger(r);
         char[] buffer = cast(char[])r.take(length).array;
@@ -258,8 +271,8 @@ private:
     /**
      * Decodes an integer from an Input range of ubyte.
      */
-    static uint decodeInteger(R)(ref R r)
-            if (isInputRange!R && is(ubyte == ElementType!R))
+    static uint decodeInteger(R)(auto ref R r)
+            if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         uint result;
         foreach (i; 0 .. 4)
@@ -346,7 +359,8 @@ public:
         f.rawWrite(hashedPassword());
         auto salt = generateSalt();
         f.rawWrite(salt);
-        auto iv = InitializationVector(new AutoSeededRNG, 16); 
+        auto iv = InitializationVector(new AutoSeededRNG, 16);
+        f.rawWrite(iv.bitsOf()[]);
         auto pipe = Pipe(getCipher("AES-256/CBC", 
                                    generateKey(salt, masterPassword), 
                                    iv, 
@@ -361,14 +375,6 @@ public:
         f.rawWrite(pipe.toString());
     }
 
-    unittest 
-    {
-        auto man = createAccountManager();
-        man.addCategory("Entertainment");
-        man.addAccount("Netflix", "johndoe", "password123");
-        auto filewriter = new LeekWriter("mysecret");
-        filewriter.writeToFile(man, "/home/olivier/test.bin");
-    }
 
 private:
 
@@ -542,5 +548,28 @@ auto generateKey(ubyte[] salt, string masterPassword)
                                       salt.ptr, salt.length,
                                       10_000);
     return aes256_key;
+}
+
+unittest 
+{
+    import botan.all;
+    LibraryInitializer init;
+    init.initialize();
+
+    auto man = createAccountManager();
+    man.addCategory("Entertainment");
+    man.addAccount("Netflix", "johndoe", "password123");
+    auto filewriter = new LeekWriter("mysecret");
+    filewriter.writeToFile(man, "/home/olivier/test.bin");
+
+    auto filereader = new LeekReader("mysecret");
+    auto man2 = filereader.readFromFile("/home/olivier/test.bin");
+    auto cat = take(man2.categories(), 1).front;
+    assert (cat.name == "Entertainment");
+    auto acc = man2.getAccount("Netflix");
+    assert (acc.name == "Netflix");
+    assert (acc.login == "johndoe");
+    assert (acc.password == "password123");
+                  
 }
 

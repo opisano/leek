@@ -469,6 +469,18 @@ package:
                                                   a.categories));
     }
 
+    /**
+     * Add an account from an AccountRecord object.
+     */
+    void addAccount(AccountRecord record)
+    {
+        m_accounts[nextId] = AccountImpl(record.name,
+                                         record.login,
+                                         record.password,
+                                         record.categories);
+        nextId++;
+    }
+
 private:
     /**
      * The structure that is really holding account information.
