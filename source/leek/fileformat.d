@@ -105,10 +105,10 @@ class LeekReader : FileReader
         auto salt = readSalt(f);
         auto key = generateKey(salt, masterPassword);
         ubyte[256] buffer;
-        auto iv = f.rawRead(buffer[0 .. 16]);
+        auto iv = readIV(f);
         auto pipe = new Pipe(getCipher("AES-256/CBC", 
                                        generateKey(salt, masterPassword),
-                                       OctetString(iv.ptr, iv.length),
+                                       iv,
                                        DECRYPTION));
 
         auto bytesRead = f.rawRead(buffer[]);
@@ -167,6 +167,34 @@ private:
         return f.rawRead(new ubyte[64]);
     }
 
+    /**
+     * Reads the Intialization vector from the file.
+     * 
+     * Params:
+     *     f = An open file to read data from.
+     *
+     * Returns:
+     *     Some random bytes, read from the file, used as initialization vector.
+     */
+    auto readIV(ref File f)
+    {
+        ubyte[16] buffer;
+        auto iv = f.rawRead(buffer[0 .. 16]);
+        if (iv.length != 16)
+            throw new StdioException("Missing data.");
+        return OctetString(iv.ptr, iv.length);
+    }
+
+    /**
+     * Decodes all the categories from decrypted raw data.
+     * 
+     * Params:
+     *     r = an input range of ubytes, as data source.
+     *     mgr = an AccountManager that will store the decoded categories.
+     * 
+     * Throws:
+     *     StdioException if runs out of data in the middle of a Category.
+     */
     static void decodeCategories(R)(ref R r, LeekAccountManager mgr)
             if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
@@ -178,6 +206,16 @@ private:
         }
     }
 
+    /**
+     * Decodes all the accounts from decrypted raw data.
+     * 
+     * Params:
+     *     r = an input range of ubytes, as data source.
+     *     mgr = an AccountManager that will store the decoded accounts.
+     * 
+     * Throws:
+     *     StdioException if runs out of data in the middle of an Account.
+     */
     static void decodeAccounts(R)(ref R r, LeekAccountManager mgr)
             if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
@@ -189,6 +227,17 @@ private:
         }
     }
 
+    /**
+     * Decode an Account from an input range of ubytes.
+     *
+     * Params:
+     *     r = The range as data source
+     *
+     * Returns:
+     *     An AccountRecord object containing raw account data.
+     *
+     * Throws StdioException if run out of data while decoding.
+     */
     static AccountRecord decodeAccount(R)(ref R r)
             if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
@@ -225,6 +274,17 @@ private:
         assert (ar.categories == [0x13, 0x18]);
     }
 
+    /**
+     * Decode a Category from an input range of ubytes.
+     *
+     * Params:
+     *     r = The range as data source
+     *
+     * Returns:
+     *     A Category object containing raw category data.
+     *
+     * Throws StdioException if run out of data while decoding.
+     */
     static CategoryRecord decodeCategory(R)(ref R r)
             if (isInputRange!R && is(ubyte ==  Unqual!(ElementType!R)))
     {
@@ -557,19 +617,20 @@ unittest
     init.initialize();
 
     auto man = createAccountManager();
-    man.addCategory("Entertainment");
-    man.addAccount("Netflix", "johndoe", "password123");
+    auto cat = man.addCategory("Entertainment");
+    auto acc = man.addAccount("Netflix", "johndoe", "password123");
+    acc.addCategory(cat);
     auto filewriter = new LeekWriter("mysecret");
     filewriter.writeToFile(man, "/home/olivier/test.bin");
 
     auto filereader = new LeekReader("mysecret");
     auto man2 = filereader.readFromFile("/home/olivier/test.bin");
-    auto cat = take(man2.categories(), 1).front;
-    assert (cat.name == "Entertainment");
-    auto acc = man2.getAccount("Netflix");
-    assert (acc.name == "Netflix");
-    assert (acc.login == "johndoe");
-    assert (acc.password == "password123");
-                  
+    auto cat2 = take(man2.categories(), 1).front;
+    assert (cat2.name == "Entertainment");
+    auto acc2 = man2.getAccount("Netflix");
+    assert (acc2.name == "Netflix");
+    assert (acc2.login == "johndoe");
+    assert (acc2.password == "password123");
+    assert (acc2.categories.front.name == "Entertainment");
 }
 
