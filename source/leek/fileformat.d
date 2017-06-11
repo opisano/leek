@@ -134,10 +134,10 @@ class LeekReader : FileReader
         auto key = generateKey(salt, masterPassword);
         ubyte[256] buffer;
         auto iv = readIV(f);
-        auto pipe =     Pipe(getCipher("AES-256/CBC", 
-                                       generateKey(salt, masterPassword),
-                                       iv,
-                                       DECRYPTION));
+        auto pipe = botan.filters.pipe.Pipe(getCipher("AES-256/CBC", 
+                                            generateKey(salt, masterPassword),
+                                            iv,
+                                            DECRYPTION));
 
         auto bytesRead = f.rawRead(buffer[]);
         pipe.startMsg();
@@ -422,10 +422,10 @@ public:
         f.rawWrite(salt);
         auto iv = InitializationVector(new AutoSeededRNG, 16);
         f.rawWrite(iv.bitsOf()[]);
-        auto pipe = Pipe(getCipher("AES-256/CBC", 
-                                   generateKey(salt, masterPassword), 
-                                   iv, 
-                                   ENCRYPTION));
+        auto pipe = botan.filters.pipe.Pipe(getCipher("AES-256/CBC", 
+                                            generateKey(salt, masterPassword), 
+                                            iv, 
+                                            ENCRYPTION));
         auto data = encodeAccountManager(mgr).array();
         scope (exit)
             clearMem(data.ptr, data.length);
@@ -644,20 +644,48 @@ unittest
     assert (acc2.categories.front.name == "Entertainment");
 }
 
-version (Posix)
+version (linux)
 {
     import core.sys.posix.unistd;
     import core.sys.posix.sys.types;
     import core.sys.posix.pwd;
+    import std.process;
 
+    /**
+     * Returns the filename where the password database is stored.
+     */
     string databaseFilename() 
+    {
+        return buildPath(getUserDataDir(),
+                         "leek",
+                         "data.bin");
+    }
+
+    /**
+     * Returns the base directory relative to which user specific data files
+     * should be stored. This function conforms to the freedesktop base
+     * directory specification.
+     * 
+     * See_Also:
+     *     https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+     */
+    private string getUserDataDir()
+    {
+        string xdg_data_home = std.process.environment.get("XDG_DATA_HOME");
+        if (xdg_data_home is null || !isAbsolute(xdg_data_home))
+            xdg_data_home = buildPath(getHomeDir(), 
+                                      ".local",
+                                      "share");
+        return xdg_data_home;
+    }
+
+    /**
+     * Returns the user home directory.
+     */
+    private string getHomeDir()
     {
         auto pw = getpwuid(getuid());
         const(char)* homedir = pw.pw_dir;
-
-        return buildPath(homedir.to!string,
-                         ".config",
-                         "leek",
-                         "data.bin");
+        return homedir.to!string;
     }
 }
