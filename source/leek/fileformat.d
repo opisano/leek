@@ -100,6 +100,7 @@ interface FileWriter
     void writeToFile(AccountManager manager, string filename);
 }
 
+
 /**
  * Implementation of the FileReader interface for the Leek 1 
  * file format. 
@@ -386,6 +387,69 @@ private:
     string masterPassword;
 }
 
+/**
+ * A FileWriter Factory Method. 
+ */
+interface FileWriterFactory
+{
+    /**
+     * Creates a FileWriter. 
+     *
+     * Params:
+     *     masterPassword = The master password to use to write the file.
+     *
+     * Returns a FileWriter object to write to the file. 
+     */
+    FileWriter createFileWriter(string masterPassword);
+}
+
+/**
+ * Creates FileWriter objects for the Leek 1 file format.
+ */
+class LeekFactory : FileWriterFactory, FileReaderFactory
+{
+    public override FileWriter createFileWriter(string masterPassword)
+    {
+        return new LeekWriter(masterPassword);
+    }
+    
+    public override FileReader createFileReader(string masterPassword)
+    {
+        return new LeekReader(masterPassword);
+    }
+}
+
+/**
+ * A FileReader Factory Method.
+ */
+interface FileReaderFactory
+{
+    /**
+     * Creates a FileReader. 
+     *
+     * Params:
+     *     masterPassword = The master password to use to read the file.
+     *
+     * Returns a FileReader object to read the file. 
+     */
+    FileReader createFileReader(string masterPassword);
+}
+
+/**
+ * Returns a FileWriterFactory to the latest native leek format.
+ */
+FileWriterFactory latestWriterFormat()
+{
+    return new LeekFactory();
+}
+
+/**
+ * Returns a FileReaderFactory to the latest native leek format.
+ */
+FileReaderFactory latestReaderFormat()
+{
+    return new LeekFactory();
+}
 
 /**
  * Implementation of the FileWriter interface for the Leek 1
