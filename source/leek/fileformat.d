@@ -30,6 +30,7 @@ import std.algorithm;
 import std.array;
 import std.bitmanip;
 import std.exception;
+import std.path;
 import std.range;
 import std.stdio;
 import std.traits;
@@ -614,7 +615,6 @@ unittest
 {
     import botan.all;
     import std.file; 
-    import std.path;
     
     LibraryInitializer init;
     init.initialize();
@@ -644,3 +644,20 @@ unittest
     assert (acc2.categories.front.name == "Entertainment");
 }
 
+version (Posix)
+{
+    import core.sys.posix.unistd;
+    import core.sys.posix.sys.types;
+    import core.sys.posix.pwd;
+
+    string databaseFilename() 
+    {
+        auto pw = getpwuid(getuid());
+        const(char)* homedir = pw.pw_dir;
+
+        return buildPath(homedir.to!string,
+                         ".config",
+                         "leek",
+                         "data.bin");
+    }
+}
