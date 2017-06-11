@@ -73,6 +73,33 @@ interface FileReader
 }
 
 /**
+ * Provides the interface for writing the passwords to a file.
+ *
+ * Params:
+ *     manager = contains the passwords and categories to write.
+ *     filename = the name of the file to write. 
+ */
+interface FileWriter
+{
+    /**
+     * Writes the content of an AccountManager to a file.
+     *
+     * The AccountManager instance passed as first parameter must 
+     * be a LeekAccountManager, or an UnsupportedFileFormatException
+     * will be thrown.  
+     *
+     * Params:
+     *     manager = contains the passwords and categories to write.
+     *     filename = the name of the file to write. 
+     * 
+     * Throws:
+     *     UnsupportedFileFormatException if manager is not a 
+     *     LeekAccountManager.
+     */
+    void writeToFile(AccountManager manager, string filename);
+}
+
+/**
  * Implementation of the FileReader interface for the Leek 1 
  * file format. 
  */
@@ -106,7 +133,7 @@ class LeekReader : FileReader
         auto key = generateKey(salt, masterPassword);
         ubyte[256] buffer;
         auto iv = readIV(f);
-        auto pipe = new Pipe(getCipher("AES-256/CBC", 
+        auto pipe =     Pipe(getCipher("AES-256/CBC", 
                                        generateKey(salt, masterPassword),
                                        iv,
                                        DECRYPTION));
@@ -360,33 +387,6 @@ private:
 
 
 /**
- * Provides the interface for writing the passwords to a file.
- *
- * Params:
- *     manager = contains the passwords and categories to write.
- *     filename = the name of the file to write. 
- */
-interface FileWriter
-{
-    /**
-     * Writes the content of an AccountManager to a file.
-     *
-     * The AccountManager instance passed as first parameter must 
-     * be a LeekAccountManager, or an UnsupportedFileFormatException
-     * will be thrown.  
-     *
-     * Params:
-     *     manager = contains the passwords and categories to write.
-     *     filename = the name of the file to write. 
-     * 
-     * Throws:
-     *     UnsupportedFileFormatException if manager is not a 
-     *     LeekAccountManager.
-     */
-    void writeToFile(AccountManager manager, string filename);
-}
-
-/**
  * Implementation of the FileWriter interface for the Leek 1
  * file format.
  */
@@ -613,6 +613,9 @@ auto generateKey(ubyte[] salt, string masterPassword)
 unittest 
 {
     import botan.all;
+    import std.file; 
+    import std.path;
+    
     LibraryInitializer init;
     init.initialize();
 
@@ -621,10 +624,17 @@ unittest
     auto acc = man.addAccount("Netflix", "johndoe", "password123");
     acc.addCategory(cat);
     auto filewriter = new LeekWriter("mysecret");
-    filewriter.writeToFile(man, "/home/olivier/test.bin");
+
+    auto tempfilename = buildPath(tempDir(), "leek_test.bin");
+    filewriter.writeToFile(man, tempfilename);
+    scope (exit)
+    {
+        if (tempfilename.exists)
+            tempfilename.remove;
+    }
 
     auto filereader = new LeekReader("mysecret");
-    auto man2 = filereader.readFromFile("/home/olivier/test.bin");
+    auto man2 = filereader.readFromFile(tempfilename);
     auto cat2 = take(man2.categories(), 1).front;
     assert (cat2.name == "Entertainment");
     auto acc2 = man2.getAccount("Netflix");

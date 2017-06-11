@@ -112,6 +112,16 @@ interface Category
 interface AccountManager
 {
     /**
+     * Returns true if this manager has an account with this name, false 
+     * otherwise.
+     * 
+     * Params:
+     *     name = The account name:
+     * 
+     */
+    bool hasAccount(string name);
+
+    /**
      * Add an Account to this manager and returns it. If an account with the
      * same name already exists, an AccountException will be thrown.
      *
@@ -227,6 +237,20 @@ package:
 class LeekAccountManager : AccountManager
 {
 public:
+
+    override bool hasAccount(string name)
+    {
+        auto found = m_accounts.byValue.find!(a => a.name == name);
+        return (!found.empty);
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        Account account = lam.addAccount("Amazon", "JohnDoe", "password123");
+        assert (lam.hasAccount(account.name));
+        assert (!lam.hasAccount("LDLC"));
+    }
 
     override Account addAccount(string name, string login, string password)
     {
