@@ -73,7 +73,7 @@ void main(string[] args)
  * Returns:
  *     The AccountManager to the database newly created. 
  */
-private AccountManager createDatabase(string filename, ref IO io)
+private AccountManager createDatabase(string filename, IO io)
 {
     io.display("Creating password database in %s\n".format(filename));
     filename.dirName.mkdirRecurse;
@@ -95,7 +95,7 @@ private AccountManager createDatabase(string filename, ref IO io)
  * Returns:
  *     The AccountManager to the database opened. 
  */
-private AccountManager openDatabase(string filename, ref IO io)
+private AccountManager openDatabase(string filename, IO io)
 {
     string masterPassword;
     auto factory = latestReaderFormat();
@@ -126,7 +126,7 @@ private AccountManager openDatabase(string filename, ref IO io)
  * Returns:
  *     The master password chosen by the user. 
  */
-private string chooseMasterPassword(alias validate)(ref IO io)
+private string chooseMasterPassword(alias validate)(IO io)
 {
     io.display("Please choose a master password. \n"
                ~ "Your master password should be long (more than 12 chars) "
@@ -163,7 +163,7 @@ private string chooseMasterPassword(alias validate)(ref IO io)
  * Returns:
  *     true if the password is considered valid, false otherwise.
  */
-private bool validatePassword(string password, ref IO io)
+private bool validatePassword(string password, IO io)
 {
     // TODO consider user libcrack to check this. 
 
