@@ -208,7 +208,12 @@ interface AccountManager
     /**
      * Returns the categories managed.
      */
-    InputRange!Category categories();    
+    InputRange!Category categories();
+
+    /**
+     * Returns the accounts managed.
+     */
+    InputRange!Account accounts();
 }
 
 /**
@@ -445,11 +450,6 @@ public:
 
     override InputRange!Category categories()
     {
-        Category[] arr;
-        foreach (uint id; m_categories.byKey)
-        {
-            arr ~= new CategoryProxy(this, id);
-        }
         return m_categories.byKey
                            .map!(i => cast(Category)new CategoryProxy(this, i))
                            .inputRangeObject;
@@ -465,6 +465,23 @@ public:
         assert (lam.categories.canFind!(c => c.name == "Leisure"));
         assert (lam.categories.canFind!(c => c.name == "Business"));
         assert (lam.categories.canFind!(c => c.name == "Entertainment"));
+    }
+
+    override InputRange!Account accounts()
+    {
+        return m_accounts.byKey
+                         .map!(i => cast(Account)new AccountProxy(this, i))
+                         .inputRangeObject;
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        lam.addAccount("amazon", "JohnDoe", "password123");
+        lam.addAccount("netflix", "RobertSmith", "qwerty123");
+
+        assert (lam.accounts.canFind!(a => a.name == "amazon"));
+        assert (lam.accounts.canFind!(a => a.name == "netflix"));
     }
 
 
