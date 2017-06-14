@@ -30,6 +30,7 @@ import std.file;
 import std.path;
 import std.stdio;
 import std.string;
+import std.typecons;
 
 void main(string[] args)
 {
@@ -41,20 +42,20 @@ void main(string[] args)
         auto io = createIO();
         io.display("Leek password manager\n");
         auto filename = databaseFilename();
-        AccountManager mgr;
+        Tuple!(AccountManager, string) mgrPwd;
 
         if (!filename.exists)
         {
             io.display("No existing password database found.\n");
-            mgr = createDatabase(filename, io);
+            mgrPwd = createDatabase(filename, io);
         }
         else
         {
-            mgr = openDatabase(filename, io);
+            mgrPwd = openDatabase(filename, io);
         }
 
         io.display("\n");
-        auto interpreter = Interpreter(mgr, io);
+        auto interpreter = Interpreter(mgrPwd[0], io, mgrPwd[1], filename);
         interpreter.mainLoop();
     }
     catch(Exception e)
@@ -71,9 +72,9 @@ void main(string[] args)
  *     io       = An IO object to interact with the user.
  * 
  * Returns:
- *     The AccountManager to the database newly created. 
+ *     The AccountManager, masterPassword tuple to the database newly created. 
  */
-private AccountManager createDatabase(string filename, IO io)
+private auto createDatabase(string filename, IO io)
 {
     io.display("Creating password database in %s\n".format(filename));
     filename.dirName.mkdirRecurse;
@@ -82,7 +83,7 @@ private AccountManager createDatabase(string filename, IO io)
     auto writer = factory.createFileWriter(masterPassword);
     auto mgr = createAccountManager();
     writer.writeToFile(mgr, filename);
-    return mgr;
+    return tuple(mgr, masterPassword);
 }
 
 /**
@@ -93,9 +94,9 @@ private AccountManager createDatabase(string filename, IO io)
  *     io       = An IO object to interact with the user.
  * 
  * Returns:
- *     The AccountManager to the database opened. 
+ *     The AccountManager, masterPassword tuple to the database opened. 
  */
-private AccountManager openDatabase(string filename, IO io)
+private auto openDatabase(string filename, IO io)
 {
     string masterPassword;
     auto factory = latestReaderFormat();
@@ -107,7 +108,7 @@ private AccountManager openDatabase(string filename, IO io)
             masterPassword = io.input_password("Please type master password: ");
             auto reader = factory.createFileReader(masterPassword);
             auto mgr = reader.readFromFile(filename);
-            return mgr;
+            return tuple(mgr, masterPassword);
         }
         catch (WrongPasswordException)
         {

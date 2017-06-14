@@ -114,10 +114,12 @@ private:
     string accountName;
 }
 
-
+/**
+ * The Command that lists all the accounts on the system.
+ */
 class ListAccountsCommand : Command
 {
-    public bool execute(AccountManager mgr, IO io)
+    public override bool execute(AccountManager mgr, IO io)
     {
         io.display("\nAccount list:\n");
         auto accounts = mgr.accounts.array.sort!((a, b) => a.name < b.name);
@@ -129,6 +131,36 @@ class ListAccountsCommand : Command
     }
 }
 
+/**
+ * The Command that tags an account with a cateory
+ */
+class TagAccountCommand : Command
+{
+public:
+    this(string accountName, string categoryName)
+    {
+        this.accountName = accountName;
+        this.categoryName = categoryName;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        auto acc = mgr.getAccount(accountName);
+        if (acc is null)
+        {
+            io.display("\n No account named %s".format(accountName));
+            return false;
+        }
+
+        auto cat = mgr.addCategory(categoryName);
+        acc.addCategory(cat);
+        return true;
+    }
+
+private:
+    string accountName;
+    string categoryName;
+}
 
 /**
  * The Command that displays help to the user.
@@ -141,8 +173,10 @@ public:
         io.display("Available commands:\n");
         io.display("\th[elp]\t\tDisplays this help\n");
         io.display("\tq[uit]\t\tExit Leek\n");
-        io.display("\tadd (account)\t\tCreate a new account\n");
-        io.display("\tget (account)\t\tGet account data\n");
+        io.display("\tlist\t\tLists all the accounts\n");
+        io.display("\tadd ACCOUNT\tCreate a new account\n");
+        io.display("\tget ACCOUNT\tGet account data\n");
+        io.display("\ttag ACCOUNT CATEGORY\tTag an account to belong to a category\n");
         return false;
     }
 }

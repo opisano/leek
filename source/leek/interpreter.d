@@ -21,6 +21,7 @@ module leek.interpreter;
 
 import leek.account;
 import leek.commands;
+import leek.fileformat;
 import leek.io;
 
 import std.string;
@@ -32,10 +33,12 @@ import std.string;
  */
 struct Interpreter
 {
-    this(AccountManager mgr, IO io)
+    this(AccountManager mgr, IO io, string masterPassword, string filename)
     {
         this.mgr = mgr;
         this.io = io;
+        this.masterPassword = masterPassword;
+        this.filename = filename;
     }
 
     void mainLoop()
@@ -48,7 +51,9 @@ struct Interpreter
             
             if (modified)
             {
-                //TODO save database to file
+                auto factory = latestWriterFormat();
+                auto writer = factory.createFileWriter(masterPassword);
+                writer.writeToFile(mgr, filename);
             }
         }
     }
@@ -89,6 +94,8 @@ private:
                 return new GetAccountCommand(elements[1]);
             if (elements[0] == "list")
                 return new ListAccountsCommand;
+            if (elements[0] == "tag" && elements.length > 2)
+                return new TagAccountCommand(elements[1], elements[2]);
         }
 
         return new UnknownCommand;
@@ -96,5 +103,7 @@ private:
 
     AccountManager mgr;
     IO io;
+    string masterPassword;
+    string filename;
 }
 
