@@ -131,6 +131,61 @@ class ListAccountsCommand : Command
     }
 }
 
+class DirCommand : Command
+{
+    public this()
+    {
+
+    }
+
+    public this(string categoryName)
+    {
+        this.categoryName = categoryName;
+    }
+
+    public override bool execute(AccountManager mgr, IO io)
+    {
+        if (categoryName is null)
+        {
+            listCategories(mgr, io);
+        }
+        else
+        {
+            listAccountsInCategory(mgr, io);
+        }
+        return false;
+    }
+
+private:
+    void listCategories(AccountManager mgr, IO io)
+    {
+        auto categories = mgr.categories.array.sort!((a, b) => a.name < b.name);
+        foreach (cat; categories)
+        {
+            io.display("%s\n".format(cat.name));
+        }
+    }
+
+    void listAccountsInCategory(AccountManager mgr, IO io)
+    {
+        auto cat = mgr.getCategory(categoryName);
+        if (cat is null)
+        {
+            io.display("\nNo category named %s found.".format(categoryName));
+        }
+        else
+        {
+            auto accounts = mgr.accounts.array.sort!((a, b) => a.name < b.name);
+            foreach (acc; accounts)
+            {
+                io.display("%s\n".format(acc.name));
+            }
+        }
+    }
+
+    string categoryName;
+}
+
 /**
  * The Command that tags an account with a cateory
  */
@@ -174,6 +229,8 @@ public:
         io.display("\th[elp]\t\tDisplays this help\n");
         io.display("\tq[uit]\t\tExit Leek\n");
         io.display("\tlist\t\tLists all the accounts\n");
+        io.display("\tdir\t\tLists all the categories\n");
+        io.display("\tdir CATEGORY\t\tLists all the accounts in category\n");
         io.display("\tadd ACCOUNT\tCreate a new account\n");
         io.display("\tget ACCOUNT\tGet account data\n");
         io.display("\ttag ACCOUNT CATEGORY\tTag an account to belong to a category\n");

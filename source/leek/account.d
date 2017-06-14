@@ -116,10 +116,19 @@ interface AccountManager
      * otherwise.
      * 
      * Params:
-     *     name = The account name:
+     *     name = The account name.
      * 
      */
     bool hasAccount(string name);
+
+    /**
+     * Returns true if this manager has a category with this name, false
+     * otherwise.
+     * 
+     * Params:
+     *     name = The category name.
+     */
+    bool hasCategory(string name);
 
     /**
      * Add an Account to this manager and returns it. If an account with the
@@ -150,6 +159,18 @@ interface AccountManager
      *     no account with this name exists. 
      */
     Account getAccount(string name);
+
+    /**
+     * Get a Category by its name.
+     *
+     * Params:
+     *    name = The category name, identifying it.
+     * 
+     * Returns:
+     *     The Category object with the name passe as parameter, or null if no
+     *     category with this name exists.
+     */
+    Category getCategory(string name);
 
     /**
      * Change the name of an account.
@@ -255,6 +276,40 @@ public:
         Account account = lam.addAccount("Amazon", "JohnDoe", "password123");
         assert (lam.hasAccount(account.name));
         assert (!lam.hasAccount("LDLC"));
+    }
+
+    override bool hasCategory(string name)
+    {
+        auto found = m_categories.byValue.find(name);
+        return (!found.empty);
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        auto cat = lam.addCategory("video");
+        assert (lam.hasCategory(cat.name));
+        assert (!lam.hasCategory("non-existent category"));
+    }
+    
+    override Category getCategory(string name)
+    {
+        auto found = m_categories.byPair.find!(p => p[1] == name);
+        if (found.empty)
+            return null;
+        else
+            return new CategoryProxy(this, found.front[0]);
+    }
+
+    unittest
+    {
+        auto lam = new LeekAccountManager;
+        lam.addCategory("video");
+        auto cat = lam.getCategory("video");
+        assert(cat.name == "video");
+        auto cat2 = lam.getCategory("non-existent category");
+        assert (cat2 is null);
+   
     }
 
     override Account addAccount(string name, string login, string password)

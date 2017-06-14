@@ -94,6 +94,13 @@ private:
                 return new GetAccountCommand(elements[1]);
             if (elements[0] == "list")
                 return new ListAccountsCommand;
+            if (elements[0] == "dir")
+            {
+                if (elements.length == 1)
+                    return new DirCommand();
+                else
+                    return new DirCommand(elements[1]);
+            }
             if (elements[0] == "tag" && elements.length > 2)
                 return new TagAccountCommand(elements[1], elements[2]);
         }
