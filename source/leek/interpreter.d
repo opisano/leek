@@ -98,7 +98,7 @@ private:
             {
                 if (elements.length == 1)
                     return new DirCommand();
-                else
+                else if (elements.length == 2)
                     return new DirCommand(elements[1]);
             }
             if (elements[0] == "tag" && elements.length > 2)
@@ -109,6 +109,14 @@ private:
                 return new DelCategoryCommand(elements[1]);
             if (elements[0] == "remove" && elements.length > 1)
                 return new RemoveAccountCommand(elements[1]);
+            if (elements[0] == "change")
+            {
+                if (elements.length == 2)
+                    return new ChangePasswordCommand(elements[1]);
+                else if (elements.length == 3)
+                    return new ChangePasswordCommand(elements[1], elements[2]);
+            }
+
         }
 
         return new UnknownCommand;
@@ -142,6 +150,8 @@ unittest
     assert ((cast(UntagAccountCommand)inter.parseLine("untag ebay trade")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("del")) !is null);
     assert ((cast(DelCategoryCommand)inter.parseLine("del cat")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("remove")) !is null);
+    assert ((cast(RemoveAccountCommand)inter.parseLine("remove facebook")) !is null);
 
 }
 

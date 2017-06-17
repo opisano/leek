@@ -19,6 +19,8 @@
 
 module leek.io;
 
+import std.typecons;
+
 /**
  * Presents an interface for user dialog.
  */
@@ -51,6 +53,8 @@ interface IO
      */
     string input_password(string prompt);
 }
+
+alias SilentIO = BlackHole!IO;
 
 version (linux)
 {

@@ -22,7 +22,9 @@ module leek.commands;
 import core.stdc.stdlib;
 
 import leek.account;
+import leek.generator;
 import leek.io;
+import leek.validate;
 
 import std.algorithm;
 import std.array;
@@ -333,10 +335,18 @@ private:
     string categoryName;
 }
 
+/**
+ * The command that removes an account.
+ */
 class RemoveAccountCommand : Command
 {
 public:
-
+    /**
+     * Constructs a RemoveAccountCommand.
+     *
+     * Params:
+     *     accountName = The name of the account to remove.
+     */
     this(string accountName)
     {
         this.accountName = accountName;
@@ -356,6 +366,74 @@ public:
     }
 private:
     string accountName;
+}
+
+/**
+ * The command that changes an account password
+ */
+class ChangePasswordCommand : Command
+{
+    /**
+     * Constructs a ChangePasswordCommand that generates 
+     * a new password.
+     *
+     * Params:
+     *     accountName = The name of the account to change.
+     */
+    this(string accountName)
+    {
+        this.accountName = accountName;
+    }
+
+    /**
+     * Constructs a ChangePasswordCommand that generates 
+     * a new password.
+     *
+     * Params:
+     *     accountName = The name of the account to change.
+     */
+    this(string accountName, string newPassword)
+    {
+        this.accountName = accountName;
+        this.newPassword = newPassword;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        auto acc = mgr.getAccount(accountName);
+        if (acc is null)
+        {
+            io.display("\nNo account named %s".format(accountName));
+            return false;
+        }
+
+        if (newPassword is null)
+        {
+            auto silentIO = new SilentIO;
+            do 
+            {
+                newPassword = generateNewPassword();
+            } while (!validatePassword(newPassword, silentIO));
+        }
+        else
+        {
+            if (!validatePassword(newPassword, io))
+                return false;
+        }
+
+        mgr.changePassword(acc, newPassword);
+        return true;
+    }
+
+private:
+    string generateNewPassword()
+    {
+        auto candidates = candidatesFactory(true, true, true, true);
+        return generatePassword(candidates, 14);
+    }
+
+    string accountName;
+    string newPassword;
 }
 
 /**

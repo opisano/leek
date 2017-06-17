@@ -23,6 +23,7 @@ import leek.account;
 import leek.fileformat;
 import leek.interpreter;
 import leek.io;
+import leek.validate;
 
 import std.ascii;
 import std.algorithm;
@@ -154,47 +155,4 @@ private string chooseMasterPassword(alias validate)(IO io)
     return password;
 }
 
-/**
- * Checks that a password is reasonably valid.
- *
- * Params:
- *     password = the password to check.
- *     io       = A IO object to to interact with the user.
- *
- * Returns:
- *     true if the password is considered valid, false otherwise.
- */
-private bool validatePassword(string password, IO io)
-{
-    // TODO consider user libcrack to check this. 
-
-    enum MIN_PASSWORD_LENGTH = 12;
-    bool valid = true;
-
-    if (password.length < MIN_PASSWORD_LENGTH)
-    {
-        io.display("Password is too short\n");
-        valid = false;
-    }
-
-    if (!password.canFind!(c => c.isUpper))
-    {
-        io.display("Password does not contain uppercase letters\n");
-        valid = false;
-    }
-
-    if (!password.canFind!(c => c.isLower))
-    {
-        io.display("Password does not contain lowercase letters\n");
-        valid = false;
-    }
-
-    if (!password.canFind!(c => c.isDigit))
-    {
-        io.display("Password does not contain digits\n");
-        valid = false;
-    }
-
-    return valid;
-}
 
