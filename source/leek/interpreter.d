@@ -114,3 +114,22 @@ private:
     string filename;
 }
 
+unittest
+{
+    auto inter = Interpreter(null, null, null, null);
+    assert ((cast(HelpCommand)inter.parseLine("h")) !is null);
+    assert ((cast(HelpCommand)inter.parseLine("help")) !is null);
+    assert ((cast(QuitCommand)inter.parseLine("q")) !is null);
+    assert ((cast(QuitCommand)inter.parseLine("q")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("add")) !is null);
+    assert ((cast(AddAccountCommand)inter.parseLine("add ebay")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("get")) !is null);
+    assert ((cast(GetAccountCommand)inter.parseLine("get ebay")) !is null);
+    assert ((cast(ListAccountsCommand)inter.parseLine("list")) !is null);
+    assert ((cast(DirCommand)inter.parseLine("dir")) !is null);
+    assert ((cast(DirCommand)inter.parseLine("dir video")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("tag")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("tag ebay")) !is null);
+    assert ((cast(TagAccountCommand)inter.parseLine("tag ebay trade")) !is null);
+}
+
