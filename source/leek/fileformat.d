@@ -491,11 +491,9 @@ public:
                                             iv, 
                                             ENCRYPTION));
         auto data = encodeAccountManager(mgr).array();
-        scope (exit)
-            clearMem(data.ptr, data.length);
 
         pipe.startMsg();
-        pipe.write(data);
+        pipe.write(data.ptr, data.length);
         pipe.endMsg();
         f.rawWrite(pipe.toString());
     }
@@ -621,7 +619,7 @@ private:
             uint value;
             uint count = 0;
             bool empty() const { return count > 3; }
-            ubyte front() const { return (value >> (count * 8)) & 0xFF; }
+            immutable(ubyte) front() const { return (value >> (count * 8)) & 0xFF; }
             void popFront() { count++; }
         }
 
@@ -643,7 +641,7 @@ private:
             s = s[0 .. uint.max];
 
         return chain(encodeInteger(cast(uint)s.length),
-                     cast(ubyte[])s.dup);
+                     cast(immutable(ubyte)[])s);
     }
 
     unittest 
