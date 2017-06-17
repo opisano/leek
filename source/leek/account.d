@@ -266,7 +266,7 @@ public:
 
     override bool hasAccount(string name)
     {
-        auto found = m_accounts.byValue.find!(a => a.name == name);
+        auto found = m_accounts.find!(a => a.name == name);
         return (!found.empty);
     }
 
@@ -280,7 +280,7 @@ public:
 
     override bool hasCategory(string name)
     {
-        auto found = m_categories.byValue.find(name);
+        auto found = m_categories.find(name);
         return (!found.empty);
     }
 
@@ -294,11 +294,11 @@ public:
     
     override Category getCategory(string name)
     {
-        auto found = m_categories.byPair.find!(p => p[1] == name);
-        if (found.empty)
+        size_t index = m_categories.countUntil(name);
+        if (index == -1 || index > uint.max)
             return null;
         else
-            return new CategoryProxy(this, found.front[0]);
+            return new CategoryProxy(this, cast(uint)index);
     }
 
     unittest
@@ -314,13 +314,13 @@ public:
 
     override Account addAccount(string name, string login, string password)
     {
-        auto found = m_accounts.byValue.find!(a => a.name == name);
-        if (!found.empty)
+        auto found = m_accounts.canFind!(a => a.name == name);
+        if (found)
             throw new AccountException("An account with the same name exists");
 
-        m_accounts[nextId] = AccountImpl(name, login, password);
-        auto proxy = new AccountProxy(this, nextId);
-        nextId++;
+        auto nextAccId = cast(uint) m_accounts.length;
+        m_accounts ~= AccountImpl(name, login, password);
+        auto proxy = new AccountProxy(this, nextAccId);
         return proxy;
     }
 
@@ -337,10 +337,10 @@ public:
 
     override Account getAccount(string name)
     {
-        auto found = m_accounts.byPair.find!(p => p[1].name == name);
-        if (!found.empty)
+        auto index  = m_accounts.countUntil!(a => a.name == name);
+        if (index != -1 && index <= uint.max)
         {
-            return new AccountProxy(this, found.front[0]);
+            return new AccountProxy(this, cast(uint)index);
         }
         return null;
     }
@@ -375,13 +375,13 @@ public:
             throw new AccountException("Invalid account.");
         }
 
-        auto pimpl = proxy.id in m_accounts;
-        if (pimpl is null)
+        if (proxy.id >= m_accounts.length 
+                || m_accounts[proxy.id] == AccountImpl.init)
         {
             throw new AccountException("Invalid account.");
         }
 
-        pimpl.name = newName;
+        m_accounts[proxy.id].name = newName;
     }
 
     unittest
@@ -411,13 +411,13 @@ public:
             throw new AccountException("Invalid account");
         }
 
-        auto pimpl = proxy.id in m_accounts;
-        if (pimpl is null)
+        if (proxy.id >= m_accounts.length 
+                || m_accounts[proxy.id] == AccountImpl.init)
         {
             throw new AccountException("Invalid account");
         }
 
-        pimpl.password = password;
+        m_accounts[proxy.id].password = password;
     }
 
     unittest
@@ -442,7 +442,7 @@ public:
             throw new AccountException("Invalid account.");
         }
 
-        m_accounts.remove(proxy.id);
+        m_accounts[proxy.id] = AccountImpl.init;
     }
 
     unittest
@@ -457,15 +457,15 @@ public:
 
     override Category addCategory(string name)
     {
-        auto found = m_categories.byPair.find!(p => p[1] == name);
-        if (!found.empty)
+        auto index = m_categories.countUntil(name);
+        if (index != -1 && index <= uint.max)
         {
-            return new CategoryProxy(this, found.front[0]);
+            return new CategoryProxy(this, cast(uint)index);
         }
-        
-        m_categories[nextId] = name;
-        auto cat = new CategoryProxy(this, nextId);
-        nextId++;
+       
+        auto nextCatId = cast(uint)m_categories.length;
+        m_categories ~= name;
+        auto cat = new CategoryProxy(this, nextCatId);
         return cat;
     }
 
@@ -492,7 +492,7 @@ public:
             throw new AccountException("Invalid category");
         }
 
-        m_categories.remove(proxy.id);
+        m_categories[proxy.id] = string.init;
     }
     
     unittest
@@ -505,26 +505,32 @@ public:
 
     override InputRange!Category categories()
     {
-        return m_categories.byKey
+        return m_categories.take(uint.max)
+                           .enumerate
+                           .filter!(t => t[1] != string.init)
+                           .map!(t => cast(uint)t[0])
                            .map!(i => cast(Category)new CategoryProxy(this, i))
                            .inputRangeObject;
     }
 
-    unittest
+    unittest 
     {
         auto lam = new LeekAccountManager();
         lam.addCategory("Leisure");
         lam.addCategory("Business");
         lam.addCategory("Entertainment");
 
-        assert (lam.categories.canFind!(c => c.name == "Leisure"));
+        assert (lam.categories.find!(c => c.name == "Leisure"));
         assert (lam.categories.canFind!(c => c.name == "Business"));
         assert (lam.categories.canFind!(c => c.name == "Entertainment"));
     }
 
     override InputRange!Account accounts()
     {
-        return m_accounts.byKey
+        return m_accounts.take(uint.max)
+                         .enumerate
+                         .filter!(t => t[1] != AccountImpl.init)
+                         .map!(t => cast(uint)t[0])
                          .map!(i => cast(Account)new AccountProxy(this, i))
                          .inputRangeObject;
     }
@@ -548,8 +554,10 @@ package:
      */
     auto categoryRecords() 
     {
-        return m_categories.byPair
-                           .map!(p => CategoryRecord(p[0], p[1]));
+        return m_categories.take(uint.max)
+                           .enumerate
+                           .filter!(t => t[1] != string.init)
+                           .map!(t => CategoryRecord(cast(uint)t[0], t[1]));
     }
 
     /**
@@ -558,7 +566,8 @@ package:
      */
     auto accountRecords()
     {
-        return m_accounts.byValue
+        return m_accounts.take(uint.max)
+                         .filter!(a => a != AccountImpl.init)
                          .map!(a => AccountRecord(a.name,
                                                   a.login,
                                                   a.password,
@@ -570,11 +579,10 @@ package:
      */
     void addAccount(AccountRecord record)
     {
-        m_accounts[nextId] = AccountImpl(record.name,
-                                         record.login,
-                                         record.password,
-                                         record.categories);
-        nextId++;
+        m_accounts ~= AccountImpl(record.name,
+                                  record.login,
+                                  record.password,
+                                  record.categories);
     }
 
 private:
@@ -592,12 +600,11 @@ private:
     /**
      * Returns the name of the account identified by id.
      */
-    string accountNameFor(uint id) const 
+    string accountNameFor(uint id) const  
     {
-        auto p_account = id in m_accounts;
-        if (p_account)
+        if (id <= m_accounts.length && m_accounts[id].name != string.init)
         {
-            return p_account.name;
+            return m_accounts[id].name;
         }
         throw new AccountException("Invalid account");
     }
@@ -607,10 +614,9 @@ private:
      */
     string accountLoginFor(uint id) const 
     {
-        auto p_account = id in m_accounts;
-        if (p_account)
+        if (id <= m_accounts.length && m_accounts[id].name != string.init)
         {
-            return p_account.login;
+            return m_accounts[id].login;
         }
         throw new AccountException("Invalid account");
     }
@@ -620,10 +626,9 @@ private:
      */
     string accountPasswordFor(uint id) const
     {
-        auto p_account = id in m_accounts;
-        if (p_account)
+        if (id <= m_accounts.length && m_accounts[id].name != string.init)
         {
-            return p_account.password;
+            return m_accounts[id].password;
         }
         throw new AccountException("Invalid account");
     }
@@ -633,10 +638,9 @@ private:
      */
     string categoryNameFor(uint id) const 
     {
-        auto p_category = id in m_categories;
-        if (p_category)
+        if (id <= m_categories.length && m_categories[id] != string.init)
         {
-            return *p_category;
+            return m_categories[id];
         }
         throw new AccountException("Invalid category");
     }
@@ -646,15 +650,17 @@ private:
      */
     InputRange!Category categoriesFor(uint id)
     {
-        auto pimpl = id in m_accounts;
-        if (pimpl is null)
+        if (id <= m_accounts.length && m_accounts[id].name != string.init)
         {
-            throw new AccountException("Invalid account");
+            return m_accounts[id].categories
+                                 .take(uint.max)
+                                 .filter!(i => m_categories[i] != string.init)
+                                 .map!(i => cast(uint)i)
+                                 .map!(i => cast(Category) new CategoryProxy(this,
+                                                                             i))
+                                 .inputRangeObject;
         }
-
-        return pimpl.categories
-                    .map!(i => cast(Category) new CategoryProxy(this, i))
-                    .inputRangeObject;
+            throw new AccountException("Invalid account");
     }
 
     /**
@@ -662,15 +668,17 @@ private:
      */
     void addCategoryFor(uint accountId, uint categoryId)
     {
-        auto pimpl = accountId in m_accounts;
-        if (pimpl is null)
+        if (accountId <= m_accounts.length 
+                && m_accounts[accountId] != AccountImpl.init)
+        {
+            if (!m_accounts[accountId].categories.canFind(categoryId))
+            {
+                m_accounts[accountId].categories ~= categoryId;
+            }
+        }
+        else
         {
             throw new AccountException("Invalid account");
-        }
-
-        if (!pimpl.categories.canFind(categoryId))
-        {
-            pimpl.categories ~= categoryId;
         }
     }
 
@@ -679,15 +687,18 @@ private:
      */
     void removeCategoryFor(uint accountId, uint categoryId)
     {
-        auto pimpl = accountId in m_accounts;
-        if (pimpl is null)
+        if (accountId <= m_accounts.length 
+                && m_accounts[accountId] != AccountImpl.init)
+        {
+            auto pacc = &m_accounts[accountId];
+            pacc.categories = pacc.categories
+                                  .remove(pacc.categories
+                                              .countUntil(categoryId));
+        }
+        else
         {
             throw new AccountException("Invalid account");
         }
-
-        pimpl.categories = pimpl.categories
-                                .remove(pimpl.categories
-                                             .countUntil(categoryId));
     }
 
     /**
@@ -695,16 +706,17 @@ private:
      */
     InputRange!Account accountsWithCategory(uint categoryId)
     {
-        return m_accounts.byPair
-                         .filter!(p => p[1].categories
+        return m_accounts.take(uint.max)
+                         .enumerate
+                         .filter!(t => t[1].categories
                                            .canFind(categoryId))
-                         .map!(p => cast(Account)new AccountProxy(this, p[0]))
+                         .map!(t => cast(uint)t[0])
+                         .map!(i => cast(Account)new AccountProxy(this, i))
                          .inputRangeObject;
     }
 
-    uint nextId;
-    AccountImpl[uint] m_accounts;
-    string[uint] m_categories;
+    AccountImpl[] m_accounts;
+    string[] m_categories;
 }
 
 
