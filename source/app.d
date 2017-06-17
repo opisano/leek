@@ -1,5 +1,5 @@
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+    Copyright 2017 Olivier Pisano.
     This file is part of Leek.
 
     Leek is free software: you can redistribute it and/or modify
