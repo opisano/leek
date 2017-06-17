@@ -103,6 +103,12 @@ private:
             }
             if (elements[0] == "tag" && elements.length > 2)
                 return new TagAccountCommand(elements[1], elements[2]);
+            if (elements[0] == "untag" && elements.length > 2)
+                return new UntagAccountCommand(elements[1], elements[2]);
+            if (elements[0] == "del" && elements.length > 1)
+                return new DelCategoryCommand(elements[1]);
+            if (elements[0] == "remove" && elements.length > 1)
+                return new RemoveAccountCommand(elements[1]);
         }
 
         return new UnknownCommand;
@@ -131,5 +137,11 @@ unittest
     assert ((cast(UnknownCommand)inter.parseLine("tag")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("tag ebay")) !is null);
     assert ((cast(TagAccountCommand)inter.parseLine("tag ebay trade")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("untag")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("untag ebay")) !is null);
+    assert ((cast(UntagAccountCommand)inter.parseLine("untag ebay trade")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("del")) !is null);
+    assert ((cast(DelCategoryCommand)inter.parseLine("del cat")) !is null);
+
 }
 

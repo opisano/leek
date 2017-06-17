@@ -53,6 +53,13 @@ interface Command
 class AddAccountCommand : Command
 {
 public:
+
+    /**
+     * Constructs an AddAccountCommand object.
+     *
+     * Params:
+     *     accountName = The name of the account to add.
+     */
     this(string accountName)
     {
         this.accountName = accountName;
@@ -90,6 +97,13 @@ private:
 class GetAccountCommand : Command
 {
 public:
+
+    /**
+     * Constructs a GetAccountCommand object.
+     * 
+     * Params:
+     *     accountName = The name of the account to get.
+     */
     this(string accountName)
     {
         this.accountName = accountName;
@@ -131,13 +145,25 @@ class ListAccountsCommand : Command
     }
 }
 
+/**
+ * The commands that lists Categories and the accounts that belong to them.
+ */
 class DirCommand : Command
 {
+    /**
+     * Constructs a DirCommand object that lists the categories.
+     */
     public this()
     {
 
     }
 
+    /**
+     * Constructs a DirCommand object that lists the accounts in a category. 
+     *
+     * Params:
+     *     categoryName = The name of the category to list accounts for.
+     */
     public this(string categoryName)
     {
         this.categoryName = categoryName;
@@ -187,11 +213,19 @@ private:
 }
 
 /**
- * The Command that tags an account with a cateory
+ * The Command that tags an account with a category
  */
 class TagAccountCommand : Command
 {
 public:
+
+    /**
+     * Constructs a TagAccountCommand object.
+     *
+     * Params:
+     *     accountName = The target account name, must exist.
+     *     categoryName = The category (created if not exists).
+     */
     this(string accountName, string categoryName)
     {
         this.accountName = accountName;
@@ -203,7 +237,7 @@ public:
         auto acc = mgr.getAccount(accountName);
         if (acc is null)
         {
-            io.display("\n No account named %s".format(accountName));
+            io.display("\nNo account named %s".format(accountName));
             return false;
         }
 
@@ -215,6 +249,113 @@ public:
 private:
     string accountName;
     string categoryName;
+}
+
+/**
+ * The Command that untags an account with a category.
+ */
+class UntagAccountCommand : Command
+{
+public:
+
+    /**
+     * Constructs a TagAccountCommand object.
+     *
+     * Params:
+     *     accountName = The target account name, must exist.
+     *     categoryName = The category (created if not exists).
+     */
+    this(string accountName, string categoryName)
+    {
+        this.accountName = accountName;
+        this.categoryName = categoryName;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        auto acc = mgr.getAccount(accountName);
+        if (acc is null)
+        {
+            io.display("\nNo account named %s".format(accountName));
+            return false;
+        }
+
+        auto cat = mgr.getCategory(categoryName);
+        if (cat is null)
+        {
+            io.display("\nNo category named %s".format(categoryName));
+            return false;
+        }
+
+        acc.removeCategory(cat);
+        return true;
+    }
+private:
+    string accountName;
+    string categoryName;
+}
+
+/**
+ * The command that deletes a Category.
+ */
+class DelCategoryCommand : Command
+{
+public:
+
+    /**
+     * Constructs a DelCategoryCommand object.
+     */
+    this(string categoryName)
+    {
+        this.categoryName = categoryName;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        auto cat = mgr.getCategory(categoryName);
+        if (cat is null)
+        {
+            io.display("\nNo category named %s".format(categoryName));
+            return false;
+        }
+        
+        foreach (acc; cat.accounts)
+        {
+            acc.removeCategory(cat);
+        }
+
+        mgr.remove(cat);
+        return true;
+    }
+
+
+private:
+    string categoryName;
+}
+
+class RemoveAccountCommand : Command
+{
+public:
+
+    this(string accountName)
+    {
+        this.accountName = accountName;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        auto acc = mgr.getAccount(accountName);
+        if (acc is null)
+        {
+            io.display("\nNo account named %s".format(accountName));
+            return false;
+        }
+
+        mgr.remove(acc);
+        return true;
+    }
+private:
+    string accountName;
 }
 
 /**
@@ -234,6 +375,8 @@ public:
         io.display("\tadd ACCOUNT\tCreate a new account\n");
         io.display("\tget ACCOUNT\tGet account data\n");
         io.display("\ttag ACCOUNT CATEGORY\tTag an account to belong to a category\n");
+        io.display("\tuntag ACCOUNT CATEGORY\tUntag a category from an account\n");
+        io.display("\tdel CATEGORY\tDeletes a category (untags all tagged accounts)\n");
         return false;
     }
 }
