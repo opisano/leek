@@ -203,7 +203,7 @@ private:
         }
         else
         {
-            auto accounts = mgr.accounts.array.sort!((a, b) => a.name < b.name);
+            auto accounts = cat.accounts.array.sort!((a, b) => a.name < b.name);
             foreach (acc; accounts)
             {
                 io.display("%s\n".format(acc.name));
