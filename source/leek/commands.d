@@ -121,7 +121,7 @@ public:
         else
         {
             io.display("login: %s".format(acc.login));
-            io.display("password: %s".format(acc.password));
+            io.display("password: %s\n".format(acc.password));
         }
         return false;
     }
