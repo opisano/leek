@@ -71,11 +71,11 @@ public:
     {
         if (mgr.hasAccount(accountName))
         {
-            io.display("\nError: an account with the same name already exists\n");
+            io.display("Error: an account with the same name already exists\n");
             return false;
         }
 
-        auto login = io.input("\nEnter login: ");
+        auto login = io.input("Enter login: ");
         auto password = io.input_password("\nEnter password: ");
         auto password2 = io.input_password("\nEnter password (confirmation): ");
         
@@ -422,6 +422,7 @@ class ChangePasswordCommand : Command
         }
 
         mgr.changePassword(acc, newPassword);
+        io.dislay("\n%s".format(newPassword));
         return true;
     }
 
