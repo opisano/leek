@@ -106,7 +106,7 @@ private auto openDatabase(string filename, IO io)
     {
         try
         {
-            masterPassword = io.input_password("Please type master password: ");
+            masterPassword = io.inputPassword("Please type master password: ");
             auto reader = factory.createFileReader(masterPassword);
             auto mgr = reader.readFromFile(filename);
             return tuple(mgr, masterPassword);
@@ -141,8 +141,8 @@ private string chooseMasterPassword(alias validate)(IO io)
 
     while (!valid || (password != password2))
     {
-        password = io.input_password("\nEnter password: ");
-        password2 = io.input_password("\nEnter password (confirmation): ");
+        password = io.inputPassword("\nEnter password: ");
+        password2 = io.inputPassword("\nEnter password (confirmation): ");
         io.display("\n");
         valid = validate(password, io);
 

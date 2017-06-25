@@ -51,7 +51,7 @@ interface IO
      * Returns:
      *     The text entered by the user.
      */
-    string input_password(string prompt);
+    string inputPassword(string prompt);
 }
 
 alias SilentIO = BlackHole!IO;
@@ -93,7 +93,7 @@ version (linux)
             return temp.fromStringz.idup;
         }
 
-        override string input_password(string prompt)
+        override string inputPassword(string prompt)
         {
             //stdout.write(prompt);
 
@@ -156,3 +156,43 @@ version (linux)
     }
 }
 
+
+version(unittest)
+{
+    /**
+     * IO implementation that always returns the same values. for testing purposes.
+     */
+    class TestIO : IO
+    {
+        this(string inputResponse, string inputPasswordResponse)
+        {
+            m_inputResponse = inputResponse;
+            m_inputPasswordResponse = inputPasswordResponse;
+        }
+
+        override void display(string message)
+        {
+            m_output ~= message;
+        }
+
+        override string input(string prompt)
+        {
+            return m_inputResponse;
+        }
+
+        override string inputPassword(string prompt)
+        {
+            return m_inputPasswordResponse;
+        }
+        
+        string[] output() 
+        {
+            return m_output;
+        }
+
+    private:
+        string[] m_output;
+        string   m_inputResponse; 
+        string   m_inputPasswordResponse;
+    }
+}
