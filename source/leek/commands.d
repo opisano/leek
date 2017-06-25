@@ -120,7 +120,7 @@ public:
         }
         else
         {
-            io.display("login: %s".format(acc.login));
+            io.display("login: %s\n".format(acc.login));
             io.display("password: %s\n".format(acc.password));
         }
         return false;
@@ -422,7 +422,7 @@ class ChangePasswordCommand : Command
         }
 
         mgr.changePassword(acc, newPassword);
-        io.dislay("\n%s".format(newPassword));
+        io.display("\n%s".format(newPassword));
         return true;
     }
 

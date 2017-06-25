@@ -61,7 +61,10 @@ version (linux)
     import core.sys.linux.termios;
     import core.sys.linux.unistd;
 
+    import gnu.readline;
+
     import std.stdio;
+    import std.string;
 
     IO getIO()
     {
@@ -86,14 +89,13 @@ version (linux)
 
         override string input(string prompt)
         {
-            stdout.write(prompt);
-            size_t len = stdin.readln(buffer);
-            return buffer[0 .. len].idup;
+            char* temp = readline(prompt.toStringz);
+            return temp.fromStringz.idup;
         }
 
         override string input_password(string prompt)
         {
-            stdout.write(prompt);
+            //stdout.write(prompt);
 
             // save terminal flags
             termios oldFlags = getTerminalFlags();
@@ -108,8 +110,9 @@ version (linux)
                 setTerminalFlags(oldFlags);
 
             // Read line
-            size_t len = stdin.readln(buffer);
-            return buffer[0 .. len].idup;
+            //size_t len = stdin.readln(buffer);
+            //return buffer[0 .. len].idup;
+            return input(prompt);
         }
 
     private:
