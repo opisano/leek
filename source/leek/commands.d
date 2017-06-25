@@ -76,8 +76,8 @@ public:
         }
 
         auto login = io.input("Enter login: ");
-        auto password = io.input_password("\nEnter password: ");
-        auto password2 = io.input_password("\nEnter password (confirmation): ");
+        auto password = io.inputPassword("\nEnter password: ");
+        auto password2 = io.inputPassword("\nEnter password (confirmation): ");
         
         if (password != password2)
         {
@@ -92,6 +92,36 @@ public:
 private:
     string accountName;
 }
+
+unittest
+{
+    enum accountName = "account";
+    enum loginName = "username";
+    enum password = "password";
+
+    // Test that a first AddAccountCommand effectively adds a new account.
+    auto mgr = new LeekAccountManager();
+    auto testIO = new TestIO(loginName, password);
+    auto cmd = new AddAccountCommand(accountName);
+    cmd.execute(mgr, testIO);
+
+    auto accounts = mgr.accounts.array;
+    assert (accounts.length == 1);
+    assert (accounts[0].name == accountName);
+    assert (accounts[0].login == loginName);
+    assert (accounts[0].password == password);
+
+    // Test that a second AddAccountCommand does not change anything.
+    auto cmd2 = new AddAccountCommand(accountName);
+    auto testIO2 = new TestIO("anotherUser", "anotherPassword");
+    cmd2.execute(mgr, testIO2);
+
+    accounts = mgr.accounts.array;
+    assert (accounts.length == 1);
+    assert (accounts[0].name == accountName);
+    assert (accounts[0].login == loginName);
+    assert (accounts[0].password == password);
+} 
 
 /**
  * The Command that returns info about an Account.
@@ -130,6 +160,29 @@ private:
     string accountName;
 }
 
+
+unittest
+{
+    enum accountName = "stupid";
+    enum loginName = "toto";
+    enum password = "LOLILOL";
+
+    auto mgr = new LeekAccountManager();
+    mgr.addAccount(accountName, loginName, password);
+
+    auto testIO = new TestIO(loginName, password);
+    auto cmd = new GetAccountCommand(accountName);
+    cmd.execute(mgr, testIO);
+
+    assert (testIO.output.canFind("login: %s\n".format(loginName)));
+    assert (testIO.output.canFind("password: %s\n".format(password)));
+    cmd = new GetAccountCommand("inexisting_Account");
+    testIO = new TestIO(loginName, password);
+    cmd.execute(mgr, testIO);
+    assert (testIO.output.canFind!(line => line.startsWith("\nError: no account")));
+}
+
+
 /**
  * The Command that lists all the accounts on the system.
  */
@@ -146,6 +199,29 @@ class ListAccountsCommand : Command
         return false;
     }
 }
+
+
+unittest
+{
+    enum accountName = "account";
+    enum loginName = "login";
+    enum password = "password";
+    auto mgr = new LeekAccountManager();
+    
+    foreach (i; 0 .. 10)
+    {
+        mgr.addAccount("%s%s".format(accountName, i), loginName, password);
+    }
+
+    auto cmd = new ListAccountsCommand;
+    auto testIO = new TestIO("", "");
+    cmd.execute(mgr, testIO);
+    foreach (i; 0 .. 10)
+    {
+        assert (testIO.output.canFind("%s%s\n".format(accountName, i)));
+    }
+}
+
 
 /**
  * The commands that lists Categories and the accounts that belong to them.
@@ -213,6 +289,31 @@ private:
 
     string categoryName;
 }
+
+
+unittest
+{
+    enum accountName = "account";
+    enum loginName = "login";
+    enum password = "password";
+    auto mgr = new LeekAccountManager();
+    mgr.addAccount(accountName, loginName, password);
+
+    foreach (i; 0 .. 10)
+    {
+        mgr.addCategory("cat%s".format(i));
+    }
+
+    auto cmd = new DirCommand;
+    auto testIO = new TestIO("", "");
+    cmd.execute(mgr, testIO);
+
+    foreach (i; 0 .. 10)
+    {
+        assert (testIO.output.canFind("cat%s\n".format(i)));
+    }
+}
+
 
 /**
  * The Command that tags an account with a category
