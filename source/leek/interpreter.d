@@ -152,6 +152,8 @@ unittest
     assert ((cast(DelCategoryCommand)inter.parseLine("del cat")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("remove")) !is null);
     assert ((cast(RemoveAccountCommand)inter.parseLine("remove facebook")) !is null);
-
+    assert ((cast(UnknownCommand)inter.parseLine("change")) !is null);
+    assert ((cast(ChangePasswordCommand)inter.parseLine("change facebook")) !is null);
+    assert ((cast(ChangePasswordCommand)inter.parseLine("change facebook password123")) !is null);
 }
 
