@@ -168,9 +168,11 @@ extern (C)
      */
     char** completion_function(const(char)* text, int start, int end)
     {
-        string str = text.fromStringz.idup;
-        if (str.needsCommandCompletion(start, end))
-            return commandCandidates(str, start, end);
+        string line = rl_copy_text(0, end).fromStringz.idup;
+        string word = text.fromStringz.idup;
+
+        if (line.atFirstWord(start, end))
+            return commandCandidates(word, start, end);
         return null;
     }
 }
@@ -187,15 +189,15 @@ shared static this()
 /**
  * Returns true if we are asking for completion for the command verb.
  */
-private bool needsCommandCompletion(string str, int start, int end) pure nothrow
+private bool atFirstWord(string str, int start, int end) pure nothrow
 {
     return !str[0 .. start].canFind(" ");
 }
 
 unittest
 {
-    assert (true == needsCommandCompletion("di", 0, 2));
-    assert (false == needsCommandCompletion("dir faceb", 4, 5));
+    assert (true == atFirstWord("di", 0, 2));
+    assert (false == atFirstWord("dir faceb", 4, 5));
 }
 
 /**
@@ -263,14 +265,6 @@ private string longestCommonPrefix(string[] values) pure
 in
 {
     assert (values.length >= 2);
-}
-out (result)
-{
-    if (result.length)
-    {
-        foreach (value; values)
-            assert (value.startsWith(result));
-    }
 }
 body
 {
