@@ -24,6 +24,8 @@ import leek.commands;
 import leek.fileformat;
 import leek.io;
 
+import std.algorithm;
+import std.array;
 import std.string;
 
 
@@ -156,4 +158,140 @@ unittest
     assert ((cast(ChangePasswordCommand)inter.parseLine("change facebook")) !is null);
     assert ((cast(ChangePasswordCommand)inter.parseLine("change facebook password123")) !is null);
 }
+
+
+extern (C) 
+{
+    /**
+     * This is the completion function that is called by readline whenever the user
+     * presses the tab key.
+     */
+    char** completion_function(const(char)* text, int start, int end)
+    {
+        string str = text.fromStringz.idup;
+        if (str.needsCommandCompletion(start, end))
+            return commandCandidates(str, start, end);
+        return null;
+    }
+}
+
+import gnu.readline;
+import std.experimental.allocator;
+import std.experimental.allocator.mallocator;
+
+shared static this()
+{
+    gnu.readline.rl_attempted_completion_function = &completion_function;
+}
+
+/**
+ * Returns true if we are asking for completion for the command verb.
+ */
+private bool needsCommandCompletion(string str, int start, int end) pure nothrow
+{
+    return !str[0 .. start].canFind(" ");
+}
+
+unittest
+{
+    assert (true == needsCommandCompletion("di", 0, 2));
+    assert (false == needsCommandCompletion("dir faceb", 4, 5));
+}
+
+/**
+ * Similar to toStringz, but works with old non const C functions.
+ */
+char* toMutableStringz(in char[] s)
+{
+    auto result = Mallocator.instance.makeArray!char(s.length+1, '\0');
+//    auto result = new char[s.length + 1]; 
+    result[0 .. s.length] = s[]; 
+    result[$-1] = '\0';
+    return result.ptr;
+}
+
+unittest 
+{
+    char* csz = toMutableStringz("text");
+    assert (csz[0] == 't');
+    assert (csz[1] == 'e');
+    assert (csz[2] == 'x');
+    assert (csz[3] == 't');
+    assert (csz[4] == '\0');
+}
+
+
+private char** commandCandidates(string str, int start, int end) nothrow
+{
+    static string[] commandVerbs = [ "help", "quit", "add", "get",
+            "list", "dir", "tag", "untag", "del", "remove", "change"];
+
+    auto candidates = commandVerbs.filter!(v => v.startsWith(str[start .. end]));
+    if (candidates.empty)
+        return null;
+
+    try
+    {
+        auto c_array = candidates.array;
+        if (c_array.length == 1)
+        {
+            //auto temp = new char*[2];
+            auto temp = Mallocator.instance.makeArray!(char*)(2, null);
+            temp[0] = c_array[0].toMutableStringz;
+            temp[1] = null;
+            return temp.ptr;
+        }
+        else
+        {
+            auto common = longestCommonPrefix(c_array);
+            //auto temp = new char*[c_array.length + 2];
+            auto temp = Mallocator.instance.makeArray!(char*)(c_array.length + 2, null);
+            temp[0] = common.toMutableStringz;
+            foreach (i; 1 .. temp.length -1)
+                temp[i] = c_array[i-1].toMutableStringz;
+            temp[$-1] = null;
+            return temp.ptr;
+        }
+    }
+    catch (Exception e)
+    {
+        return null;
+    }
+}
+
+private string longestCommonPrefix(string[] values) pure 
+in
+{
+    assert (values.length >= 2);
+}
+out (result)
+{
+    foreach (value; values)
+        assert (value.startsWith(result));
+}
+body
+{
+    string maxPrefix = "";
+
+    foreach (size_t firstIndex; 0 .. values.length - 1)
+    {
+        string first = values[firstIndex];
+        foreach (size_t secondIndex; firstIndex+1 .. values.length)
+        {
+            string second = values[secondIndex];
+            string prefix = commonPrefix(first, second);
+            if (prefix.length > maxPrefix.length)
+                maxPrefix = prefix;
+        }
+    }
+
+    return maxPrefix;
+}
+
+unittest 
+{
+    auto values = ["parachute", "parapente", "parallel"];
+    assert ("para" == longestCommonPrefix(values));
+}
+
 
