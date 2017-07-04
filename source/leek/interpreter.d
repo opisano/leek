@@ -94,7 +94,7 @@ private:
                 return new AddAccountCommand(elements[1]);
             if (elements[0] == "get" && elements.length > 1)
                 return new GetAccountCommand(elements[1]);
-            if (elements[0] == "list")
+            if (elements[0] == "list-accounts")
                 return new ListAccountsCommand;
             if (elements[0] == "dir")
             {
@@ -141,7 +141,7 @@ unittest
     assert ((cast(AddAccountCommand)inter.parseLine("add ebay")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("get")) !is null);
     assert ((cast(GetAccountCommand)inter.parseLine("get ebay")) !is null);
-    assert ((cast(ListAccountsCommand)inter.parseLine("list")) !is null);
+    assert ((cast(ListAccountsCommand)inter.parseLine("list-accounts")) !is null);
     assert ((cast(DirCommand)inter.parseLine("dir")) !is null);
     assert ((cast(DirCommand)inter.parseLine("dir video")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("tag")) !is null);
@@ -204,7 +204,6 @@ unittest
 char* toMutableStringz(in char[] s)
 {
     auto result = Mallocator.instance.makeArray!char(s.length+1, '\0');
-//    auto result = new char[s.length + 1]; 
     result[0 .. s.length] = s[]; 
     result[$-1] = '\0';
     return result.ptr;
@@ -224,7 +223,7 @@ unittest
 private char** commandCandidates(string str, int start, int end) nothrow
 {
     static string[] commandVerbs = [ "help", "quit", "add", "get",
-            "list", "dir", "tag", "untag", "del", "remove", "change"];
+            "list-accounts", "dir", "tag", "untag", "del", "remove", "change"];
 
     auto candidates = commandVerbs.filter!(v => v.startsWith(str[start .. end]));
     if (candidates.empty)
@@ -235,7 +234,6 @@ private char** commandCandidates(string str, int start, int end) nothrow
         auto c_array = candidates.array;
         if (c_array.length == 1)
         {
-            //auto temp = new char*[2];
             auto temp = Mallocator.instance.makeArray!(char*)(2, null);
             temp[0] = c_array[0].toMutableStringz;
             temp[1] = null;
@@ -244,7 +242,6 @@ private char** commandCandidates(string str, int start, int end) nothrow
         else
         {
             auto common = longestCommonPrefix(c_array);
-            //auto temp = new char*[c_array.length + 2];
             auto temp = Mallocator.instance.makeArray!(char*)(c_array.length + 2, null);
             temp[0] = common.toMutableStringz;
             foreach (i; 1 .. temp.length -1)
@@ -259,39 +256,35 @@ private char** commandCandidates(string str, int start, int end) nothrow
     }
 }
 
-private string longestCommonPrefix(string[] values) pure 
+/**
+ * Find the longest common prefix between a list of strings.
+ */
+private string longestCommonPrefix(string[] values) pure  
 in
 {
     assert (values.length >= 2);
 }
 out (result)
 {
-    foreach (value; values)
-        assert (value.startsWith(result));
+    if (result.length)
+    {
+        foreach (value; values)
+            assert (value.startsWith(result));
+    }
 }
 body
 {
-    string maxPrefix = "";
-
-    foreach (size_t firstIndex; 0 .. values.length - 1)
-    {
-        string first = values[firstIndex];
-        foreach (size_t secondIndex; firstIndex+1 .. values.length)
-        {
-            string second = values[secondIndex];
-            string prefix = commonPrefix(first, second);
-            if (prefix.length > maxPrefix.length)
-                maxPrefix = prefix;
-        }
-    }
-
-    return maxPrefix;
+    return values.fold!commonPrefix;
 }
 
 unittest 
 {
     auto values = ["parachute", "parapente", "parallel"];
     assert ("para" == longestCommonPrefix(values));
+    values = ["geeksforgeeks", "geeks", "geek", "geezer"];
+    assert ("gee" == longestCommonPrefix(values));
+    values = ["apple", "ape", "april"];
+    assert ("ap" == longestCommonPrefix(values));
 }
 
 
