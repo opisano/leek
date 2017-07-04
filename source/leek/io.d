@@ -60,6 +60,7 @@ version (linux)
 {
     import core.sys.linux.termios;
     import core.sys.linux.unistd;
+    import core.stdc.stdlib;
 
     import gnu.readline;
 
@@ -77,11 +78,6 @@ version (linux)
     class LinuxConsoleIO : IO
     {
     public:
-        this()
-        {
-            buffer = new char[1024];
-        }
-
         override void display(string message)
         {
             stdout.write(message);
@@ -89,8 +85,10 @@ version (linux)
 
         override string input(string prompt)
         {
-            char* temp = readline(prompt.toStringz);
-            return temp.fromStringz.idup;
+            char* line = readline(prompt.toStringz);
+            scope (exit)
+                free(line);
+            return line.fromStringz.idup;
         }
 
         override string inputPassword(string prompt)
@@ -145,9 +143,6 @@ version (linux)
         {
             flags.c_lflag &= ~ECHO;
         }
-
-        /// line buffer
-        char[] buffer;
     }
 
     IO createIO()

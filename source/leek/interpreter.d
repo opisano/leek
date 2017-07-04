@@ -19,6 +19,10 @@
 
 module leek.interpreter;
 
+import core.stdc.stdlib;
+
+import gnu.readline;
+
 import leek.account;
 import leek.commands;
 import leek.fileformat;
@@ -26,6 +30,8 @@ import leek.io;
 
 import std.algorithm;
 import std.array;
+import std.experimental.allocator;
+import std.experimental.allocator.mallocator;
 import std.string;
 
 
@@ -168,7 +174,11 @@ extern (C)
      */
     char** completion_function(const(char)* text, int start, int end)
     {
-        string line = rl_copy_text(0, end).fromStringz.idup;
+        char* temp = rl_copy_text(0, end);
+        scope (exit)
+            free(temp);
+
+        string line = temp.fromStringz.idup;
         string word = text.fromStringz.idup;
 
         if (line.atFirstWord(start, end))
@@ -177,9 +187,6 @@ extern (C)
     }
 }
 
-import gnu.readline;
-import std.experimental.allocator;
-import std.experimental.allocator.mallocator;
 
 shared static this()
 {
@@ -214,6 +221,8 @@ char* toMutableStringz(in char[] s)
 unittest 
 {
     char* csz = toMutableStringz("text");
+    scope (exit)
+        Mallocator.instance.dispose(csz);
     assert (csz[0] == 't');
     assert (csz[1] == 'e');
     assert (csz[2] == 'x');
