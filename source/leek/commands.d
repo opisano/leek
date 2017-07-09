@@ -188,7 +188,41 @@ unittest
  */
 class ListAccountsCommand : Command
 {
-    public override bool execute(AccountManager mgr, IO io)
+public:
+    /**
+     * Constructs a ListAccountCommand object that lists the categories.
+     */
+    this()
+    {
+    }
+
+    /**
+     * Constructs a ListAccountCommand object that lists the accounts in a category. 
+     *
+     * Params:
+     *     categoryName = The name of the category to list accounts for.
+     */
+    this(string categoryName)
+    {
+        this.categoryName = categoryName;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        if (categoryName is null)
+        {
+            return listAllAccounts(mgr, io);
+        }
+        else
+        {
+            return listAccountsInCategory(mgr, io);
+        }
+    }
+
+private:
+    string categoryName;
+
+    bool listAllAccounts(AccountManager mgr, IO io)
     {
         io.display("\nAccount list:\n");
         auto accounts = mgr.accounts.array.sort!((a, b) => a.name < b.name);
@@ -198,6 +232,25 @@ class ListAccountsCommand : Command
         }
         return false;
     }
+
+    bool listAccountsInCategory(AccountManager mgr, IO io)
+    {
+        auto cat = mgr.getCategory(categoryName);
+        if (cat is null)
+        {
+            io.display("\nNo category named %s found.".format(categoryName));
+        }
+        else
+        {
+            auto accounts = cat.accounts.array.sort!((a, b) => a.name < b.name);
+            foreach (acc; accounts)
+            {
+                io.display("%s\n".format(acc.name));
+            }
+        }
+        return false;
+    }
+
 }
 
 
@@ -226,68 +279,25 @@ unittest
 /**
  * The commands that lists Categories and the accounts that belong to them.
  */
-class DirCommand : Command
+class ListCategoriesCommand : Command
 {
     /**
-     * Constructs a DirCommand object that lists the categories.
+     * Constructs a ListCategoriesCommand object that lists the categories.
      */
     public this()
     {
 
     }
 
-    /**
-     * Constructs a DirCommand object that lists the accounts in a category. 
-     *
-     * Params:
-     *     categoryName = The name of the category to list accounts for.
-     */
-    public this(string categoryName)
-    {
-        this.categoryName = categoryName;
-    }
-
     public override bool execute(AccountManager mgr, IO io)
-    {
-        if (categoryName is null)
-        {
-            listCategories(mgr, io);
-        }
-        else
-        {
-            listAccountsInCategory(mgr, io);
-        }
-        return false;
-    }
-
-private:
-    void listCategories(AccountManager mgr, IO io)
     {
         auto categories = mgr.categories.array.sort!((a, b) => a.name < b.name);
         foreach (cat; categories)
         {
             io.display("%s\n".format(cat.name));
         }
+        return false;
     }
-
-    void listAccountsInCategory(AccountManager mgr, IO io)
-    {
-        auto cat = mgr.getCategory(categoryName);
-        if (cat is null)
-        {
-            io.display("\nNo category named %s found.".format(categoryName));
-        }
-        else
-        {
-            auto accounts = cat.accounts.array.sort!((a, b) => a.name < b.name);
-            foreach (acc; accounts)
-            {
-                io.display("%s\n".format(acc.name));
-            }
-        }
-    }
-
-    string categoryName;
 }
 
 
@@ -304,7 +314,7 @@ unittest
         mgr.addCategory("cat%s".format(i));
     }
 
-    auto cmd = new DirCommand;
+    auto cmd = new ListCategoriesCommand;
     auto testIO = new TestIO("", "");
     cmd.execute(mgr, testIO);
 
@@ -401,12 +411,12 @@ private:
 /**
  * The command that deletes a Category.
  */
-class DelCategoryCommand : Command
+class RemoveCategoryCommand : Command
 {
 public:
 
     /**
-     * Constructs a DelCategoryCommand object.
+     * Constructs a RemoveCategoryCommand object.
      */
     this(string categoryName)
     {
@@ -549,14 +559,15 @@ public:
         io.display("Available commands:\n");
         io.display("\th[elp]\t\tDisplays this help\n");
         io.display("\tq[uit]\t\tExit Leek\n");
-        io.display("\tlist\t\tLists all the accounts\n");
+        io.display("\tlist-accounts\t\tLists all the accounts\n");
         io.display("\tdir\t\tLists all the categories\n");
         io.display("\tdir CATEGORY\t\tLists all the accounts in category\n");
         io.display("\tadd ACCOUNT\tCreate a new account\n");
         io.display("\tget ACCOUNT\tGet account data\n");
         io.display("\ttag ACCOUNT CATEGORY\tTag an account to belong to a category\n");
         io.display("\tuntag ACCOUNT CATEGORY\tUntag a category from an account\n");
-        io.display("\tdel CATEGORY\tDeletes a category (untags all tagged accounts)\n");
+        io.display("\tremove-category CATEGORY\tRemoves a category (untags all tagged accounts)\n");
+        io.display("\tremove-account ACCOUNT\tRemoves an account");
         return false;
     }
 }

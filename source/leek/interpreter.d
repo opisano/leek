@@ -101,21 +101,21 @@ private:
             if (elements[0] == "get" && elements.length > 1)
                 return new GetAccountCommand(elements[1]);
             if (elements[0] == "list-accounts")
-                return new ListAccountsCommand;
-            if (elements[0] == "dir")
             {
                 if (elements.length == 1)
-                    return new DirCommand();
+                    return new ListAccountsCommand;
                 else if (elements.length == 2)
-                    return new DirCommand(elements[1]);
+                    return new ListAccountsCommand(elements[1]);
             }
+            if (elements[0] == "list-categories")
+                return new ListCategoriesCommand();
             if (elements[0] == "tag" && elements.length > 2)
                 return new TagAccountCommand(elements[1], elements[2]);
             if (elements[0] == "untag" && elements.length > 2)
                 return new UntagAccountCommand(elements[1], elements[2]);
-            if (elements[0] == "del" && elements.length > 1)
-                return new DelCategoryCommand(elements[1]);
-            if (elements[0] == "remove" && elements.length > 1)
+            if (elements[0] == "remove-category" && elements.length > 1)
+                return new RemoveCategoryCommand(elements[1]);
+            if (elements[0] == "remove-account" && elements.length > 1)
                 return new RemoveAccountCommand(elements[1]);
             if (elements[0] == "change")
             {
@@ -148,18 +148,18 @@ unittest
     assert ((cast(UnknownCommand)inter.parseLine("get")) !is null);
     assert ((cast(GetAccountCommand)inter.parseLine("get ebay")) !is null);
     assert ((cast(ListAccountsCommand)inter.parseLine("list-accounts")) !is null);
-    assert ((cast(DirCommand)inter.parseLine("dir")) !is null);
-    assert ((cast(DirCommand)inter.parseLine("dir video")) !is null);
+    assert ((cast(ListAccountsCommand)inter.parseLine("list-accounts video")) !is null);
+    assert ((cast(ListCategoriesCommand)inter.parseLine("list-categories")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("tag")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("tag ebay")) !is null);
     assert ((cast(TagAccountCommand)inter.parseLine("tag ebay trade")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("untag")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("untag ebay")) !is null);
     assert ((cast(UntagAccountCommand)inter.parseLine("untag ebay trade")) !is null);
-    assert ((cast(UnknownCommand)inter.parseLine("del")) !is null);
-    assert ((cast(DelCategoryCommand)inter.parseLine("del cat")) !is null);
-    assert ((cast(UnknownCommand)inter.parseLine("remove")) !is null);
-    assert ((cast(RemoveAccountCommand)inter.parseLine("remove facebook")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("remove-category")) !is null);
+    assert ((cast(RemoveCategoryCommand)inter.parseLine("remove-category cat")) !is null);
+    assert ((cast(UnknownCommand)inter.parseLine("remove-account")) !is null);
+    assert ((cast(RemoveAccountCommand)inter.parseLine("remove-account facebook")) !is null);
     assert ((cast(UnknownCommand)inter.parseLine("change")) !is null);
     assert ((cast(ChangePasswordCommand)inter.parseLine("change facebook")) !is null);
     assert ((cast(ChangePasswordCommand)inter.parseLine("change facebook password123")) !is null);
@@ -169,8 +169,16 @@ unittest
 extern (C) 
 {
     /**
-     * This is the completion function that is called by readline whenever the user
+     * This is the completion callback that is called by readline whenever the user
      * presses the tab key.
+     *
+     * Params:
+     *     text = Pointer to a C string containing the current word 
+     *     start = Position of text in the current line.
+     *     end = end of current word in the current line.
+     * 
+     * Returns:
+     *     A C array of strings that are candidates in the current context.
      */
     char** completion_function(const(char)* text, int start, int end)
     {
@@ -182,12 +190,22 @@ extern (C)
         string word = text.fromStringz.idup;
 
         if (line.atFirstWord(start, end))
+        {
             return commandCandidates(word, start, end);
+        }
+        else
+        {
+            
+        }
         return null;
     }
 }
 
 
+/**
+ * This module shared constructor assigns the readline completion pointer 
+ * function.
+ */
 shared static this()
 {
     gnu.readline.rl_attempted_completion_function = &completion_function;
@@ -208,7 +226,11 @@ unittest
 }
 
 /**
- * Similar to toStringz, but works with old non const C functions.
+ * Similar to toStringz, but works with old non const C functions, that 
+ * readline uses.
+ * 
+ * Memory allocated by this function is to be freed by C's stdlib
+ * free() function, which is called by readline itself most of the time.
  */
 char* toMutableStringz(in char[] s)
 {
@@ -230,11 +252,20 @@ unittest
     assert (csz[4] == '\0');
 }
 
-
+/**
+ * Returns a sequence of commands that are candidates to the current 
+ * command.
+ * 
+ * 
+ */
 private char** commandCandidates(string str, int start, int end) nothrow
 {
     static string[] commandVerbs = [ "help", "quit", "add", "get",
-            "list-accounts", "dir", "tag", "untag", "del", "remove", "change"];
+            "list-accounts", "list-categories", "tag", "untag", 
+            "remove-category", "remove-account", "change"];
+
+    if (start >= str.length || end > str.length)
+        return null;
 
     auto candidates = commandVerbs.filter!(v => v.startsWith(str[start .. end]));
     if (candidates.empty)
@@ -247,7 +278,6 @@ private char** commandCandidates(string str, int start, int end) nothrow
         {
             auto temp = Mallocator.instance.makeArray!(char*)(2, null);
             temp[0] = c_array[0].toMutableStringz;
-            temp[1] = null;
             return temp.ptr;
         }
         else
@@ -257,7 +287,6 @@ private char** commandCandidates(string str, int start, int end) nothrow
             temp[0] = common.toMutableStringz;
             foreach (i; 1 .. temp.length -1)
                 temp[i] = c_array[i-1].toMutableStringz;
-            temp[$-1] = null;
             return temp.ptr;
         }
     }
