@@ -274,20 +274,21 @@ private char** commandCandidates(string str, int start, int end) nothrow
     try
     {
         auto c_array = candidates.array;
+        char*[] result;
         if (c_array.length == 1)
         {
-            auto temp = Mallocator.instance.makeArray!(char*)(2, null);
-            temp[0] = c_array[0].toMutableStringz;
-            return temp.ptr;
+            result = Mallocator.instance.makeArray!(char*)(2, null);
+            result[0] = c_array[0].toMutableStringz;
+            return result.ptr;
         }
         else
         {
             auto common = longestCommonPrefix(c_array);
-            auto temp = Mallocator.instance.makeArray!(char*)(c_array.length + 2, null);
-            temp[0] = common.toMutableStringz;
-            foreach (i; 1 .. temp.length -1)
-                temp[i] = c_array[i-1].toMutableStringz;
-            return temp.ptr;
+            result = Mallocator.instance.makeArray!(char*)(c_array.length + 2, null);
+            result[0] = common.toMutableStringz;
+            foreach (i; 1 .. result.length -1)
+                result[i] = c_array[i-1].toMutableStringz;
+            return result.ptr;
         }
     }
     catch (Exception e)
