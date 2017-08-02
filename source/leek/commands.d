@@ -76,14 +76,27 @@ public:
         }
 
         auto login = io.input("Enter login: ");
-        auto password = io.inputPassword("\nEnter password: ");
-        auto password2 = io.inputPassword("\nEnter password (confirmation): ");
-        
-        if (password != password2)
+        auto password = io.inputPassword("\nEnter password (leave blank to generate): ");
+
+        if (password.length) 
         {
-            io.display("\nError: passwords do not match\n");
-            return false;
+            auto password2 = io.inputPassword("\nEnter password (confirmation): ");
+        
+            if (password != password2)
+            {
+                io.display("\nError: passwords do not match\n");
+                return false;
+            }
         }
+        else
+        {
+            auto silentIO = new SilentIO;
+            do 
+            {
+                password = generateNewPassword();
+            } while (!validatePassword(password, silentIO));
+        }
+
         mgr.addAccount(accountName, login, password);
         io.display("\nPassword added successfully\n");
         return true;
@@ -538,12 +551,7 @@ class ChangePasswordCommand : Command
     }
 
 private:
-    string generateNewPassword()
-    {
-        auto candidates = candidatesFactory(true, true, true, true);
-        return generatePassword(candidates, 14);
-    }
-
+    
     string accountName;
     string newPassword;
 }
@@ -594,5 +602,12 @@ class UnknownCommand : Command
         io.display("Unkwown command. type \"help\" or \"h\" for available commands.\n");
         return false;
     }
+}
+
+private:
+string generateNewPassword()
+{
+    auto candidates = candidatesFactory(true, true, true, true);
+    return generatePassword(candidates, 14);
 }
 
