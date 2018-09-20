@@ -28,6 +28,8 @@ import leek.validate;
 
 import std.algorithm;
 import std.array;
+import std.conv;
+import std.stdio;
 import std.string;
 
 
@@ -604,10 +606,41 @@ class UnknownCommand : Command
     }
 }
 
+/**
+ * Command that exports an account database to a plain text file.
+ */
+class ExportCommand : Command
+{
+public:
+    this(string filename)
+    {
+        m_filename = filename;
+    }
+
+    override bool execute(AccountManager mgr, IO io)
+    {
+        io.display("Exporting password database to %s...\n".format(m_filename));
+        auto f = File(m_filename, "w");
+        foreach (acc; mgr.accounts)
+        {
+            string categories = acc.categories
+                                   .map!(cat => cat.name)
+                                   .joiner("\t")
+                                   .to!string;
+            f.writefln("%s\t%s\t%s\t%s", acc.name, acc.login, acc.password, categories);
+        }
+        return false;
+    }
+
+private:
+    string m_filename;
+}
+
 private:
 string generateNewPassword()
 {
     auto candidates = candidatesFactory(true, true, true, true);
     return generatePassword(candidates, 14);
 }
+
 

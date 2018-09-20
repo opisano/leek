@@ -124,7 +124,10 @@ private:
                 else if (elements.length == 3)
                     return new ChangePasswordCommand(elements[1], elements[2]);
             }
-
+            if (elements[0] == "export" && elements.length > 1)
+            {
+                return new ExportCommand(elements[1]);
+            }
         }
 
         return new UnknownCommand;
