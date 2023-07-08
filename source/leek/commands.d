@@ -578,6 +578,7 @@ public:
         io.display("\tuntag ACCOUNT CATEGORY\tUntag a category from an account\n");
         io.display("\tremove-category CATEGORY\tRemoves a category (untags all tagged accounts)\n");
         io.display("\tremove-account ACCOUNT\tRemoves an account");
+        io.display("\texport FILENAME\tExport database to a file.");
         return false;
     }
 }
@@ -590,7 +591,6 @@ class QuitCommand : Command
     public override bool execute(AccountManager mgr, IO io)
     {
         exit(0);
-        return false;
     }
 }
 
