@@ -1,5 +1,5 @@
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    Copyright 2017 Olivier Pisano.
+    Copyright 2017-2023 Olivier Pisano.
     This file is part of Leek.
 
     Leek is free software: you can redistribute it and/or modify
@@ -97,7 +97,7 @@ interface FileWriter
      *     UnsupportedFileFormatException if manager is not a 
      *     LeekAccountManager.
      */
-    void writeToFile(AccountManager manager, string filename);
+    void writeToFile(AccountManager* manager, string filename);
 }
 
 
@@ -149,7 +149,7 @@ class LeekReader : FileReader
         }
         pipe.endMsg();
         auto data = cast(immutable(ubyte)[])pipe.toString();
-        auto mgr = new LeekAccountManager;
+        AccountManager mgr;
         decodeCategories(data, mgr);
         decodeAccounts(data, mgr);
 
@@ -224,14 +224,15 @@ private:
      * Throws:
      *     StdioException if runs out of data in the middle of a Category.
      */
-    static void decodeCategories(R)(ref R r, LeekAccountManager mgr)
+    static void decodeCategories(R)(ref R r, ref AccountManager mgr)
             if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         enum category_id = 0xCA1E6074;
+        int i = 0;
         while (!r.empty && decodeInteger(take(r, 4)) == category_id)
         {
             auto cat = decodeCategory(r);
-            mgr.addCategory(cat.name);
+            mgr.addRecord(Category(++i, cat.name));
         }
     }
 
@@ -245,14 +246,14 @@ private:
      * Throws:
      *     StdioException if runs out of data in the middle of an Account.
      */
-    static void decodeAccounts(R)(ref R r, LeekAccountManager mgr)
+    static void decodeAccounts(R)(ref R r, ref AccountManager mgr)
             if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         enum account_id = 0xACC0947;
         while (!r.empty && decodeInteger(take(r, 4)) == account_id)
         {
             auto record = decodeAccount(r);
-            mgr.addAccount(record);
+            mgr.addRecord(record);
         }
     }
 
@@ -267,7 +268,7 @@ private:
      *
      * Throws StdioException if run out of data while decoding.
      */
-    static AccountRecord decodeAccount(R)(ref R r)
+    static Account decodeAccount(R)(ref R r)
             if (isInputRange!R && is(ubyte == Unqual!(ElementType!R)))
     {
         r = r.drop(uint.sizeof); // skip AccountRecord identifier.
@@ -280,7 +281,7 @@ private:
         {
             ids ~= decodeInteger(r);
         }
-        return AccountRecord(name, login, password, ids);
+        return Account(name, login, password, "", "", ids);
     }
 
     unittest
@@ -314,13 +315,13 @@ private:
      *
      * Throws StdioException if run out of data while decoding.
      */
-    static CategoryRecord decodeCategory(R)(ref R r)
+    static Category decodeCategory(R)(ref R r)
             if (isInputRange!R && is(ubyte ==  Unqual!(ElementType!R)))
     {
         r = r.drop(uint.sizeof); // skip CategoryRecord identifier.
         uint id = decodeInteger(r);
         string name = decodeString(r);
-        return CategoryRecord(id, name);
+        return Category(id, name);
     }
 
     unittest 
@@ -471,9 +472,8 @@ public:
         this.masterPassword = masterPassword;
     }
 
-    override void writeToFile(AccountManager manager, string filename)
+    override void writeToFile(AccountManager* mgr, string filename)
     {
-        auto mgr = cast(LeekAccountManager) manager;
         if (mgr is null)
         {
             throw new UnsupportedFileFormatException("Incorrect manager");
@@ -546,12 +546,12 @@ private:
      * Encodes the content of a LeekAccountManager as a stream of 
      * bytes.
      */ 
-    static auto encodeAccountManager(LeekAccountManager mgr) pure
+    static auto encodeAccountManager(AccountManager* mgr)
     {
-        return chain(mgr.categoryRecords
+        return chain(mgr.categories
                         .map!(cr => encodeCategoryRecord(cr))
                         .joiner,
-                     mgr.accountRecords
+                     mgr.accounts
                         .map!(ar => encodeAccountRecord(ar))
                         .joiner);
     } 
@@ -559,7 +559,7 @@ private:
     /**
      * Encodes a CategoryRecord as an InputRange of ubyte.
      */
-    static auto encodeCategoryRecord(CategoryRecord record) pure
+    static auto encodeCategoryRecord(Category record) pure
     {
         enum category = 0xCA1E6074;
         return chain(encodeInteger(category),
@@ -569,7 +569,7 @@ private:
 
     unittest 
     {
-        auto cat = CategoryRecord(0x42, "Music");
+        auto cat = Category(0x42, "Music");
         assert (equal(encodeCategoryRecord(cat),
                       [0x74, 0x60, 0x1E, 0xCA, 
                        0x42, 0x00, 0x00, 0x00,
@@ -580,7 +580,7 @@ private:
     /**
      * Encodes an AccountRecord as an InputRange of ubyte.
      */
-    static auto encodeAccountRecord(AccountRecord record) pure
+    static auto encodeAccountRecord(Account record) pure
     {
         enum account = 0xACC0947;
         return chain(encodeInteger(account),
@@ -593,8 +593,7 @@ private:
 
     unittest 
     {
-        auto acc = AccountRecord("Netflix", "JohnDoe", "password",
-                                 [0x13, 0x18]);
+        auto acc = Account("Netflix", "JohnDoe", "password", "", "", [0x13, 0x18]);
         assert (equal(encodeAccountRecord(acc),
                       [0x47, 0x09, 0xCC, 0x0A, 
                        0x07, 0x00, 0x00, 0x00,
@@ -681,14 +680,16 @@ unittest
     LibraryInitializer init;
     init.initialize();
 
-    auto man = createAccountManager();
-    auto cat = man.addCategory("Entertainment");
-    auto acc = man.addAccount("Netflix", "johndoe", "password123");
+    AccountManager man;
+    auto cat = Category(1, "Entertainment");
+    man.addCategory(cat);
+    auto acc = Account("Netflix", "johndoe", "password123", "", "", []);
+    man.addAccount(acc);
     acc.addCategory(cat);
     auto filewriter = new LeekWriter("mysecret");
 
     auto tempfilename = buildPath(tempDir(), "leek_test.bin");
-    filewriter.writeToFile(man, tempfilename);
+    filewriter.writeToFile(&man, tempfilename);
     scope (exit)
     {
         if (tempfilename.exists)
@@ -699,11 +700,12 @@ unittest
     auto man2 = filereader.readFromFile(tempfilename);
     auto cat2 = take(man2.categories(), 1).front;
     assert (cat2.name == "Entertainment");
-    auto acc2 = man2.getAccount("Netflix");
+    Account acc2;
+    bool result = man2.findAccount("Netflix", acc2);
+    assert (result);
     assert (acc2.name == "Netflix");
     assert (acc2.login == "johndoe");
     assert (acc2.password == "password123");
-    assert (acc2.categories.front.name == "Entertainment");
 }
 
 version (linux)

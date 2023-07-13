@@ -1,0 +1,28 @@
+{
+	"authors": [
+		"Olivier Pisano"
+	],
+	"copyright": "Copyright © 2017, Olivier Pisano",
+	"dependencies": {
+		"botan": "1.13.4",
+		"vibe-d": "~>0.9.6",
+		"vibe-d:tls": "~>0.9.6"
+	},
+	"description": "A password manager",
+	"homepage": "http://github.com/opisano/leek",
+	"libs": [
+		"z",
+		"ssl",
+		"crypt",
+		"crypto"
+	],
+	"license": "GPL-3.0",
+	"name": "leek",
+	"stringImportPaths": [
+		"./source",
+		"./views"
+	],
+	"subConfigurations": {
+		"vibe-d:tls": "openssl"
+	}
+}

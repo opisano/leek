@@ -19,9 +19,19 @@
 
 module leek.validate;
 
-import leek.io;
 import std.algorithm;
-import std.ascii;
+import std.string;
+import std.exception;
+
+
+extern(C)
+{
+
+const(char)* CRACKLIB_DICTPATH;
+const(char)* FascistCheck(const(char)* passwd, const(char)* dictpath);
+
+}
+
 
 
 /**
@@ -34,37 +44,17 @@ import std.ascii;
  * Returns:
  *     true if the password is considered valid, false otherwise.
  */
-bool validatePassword(string password, IO io)
+bool validatePassword(string password, out string diagnostic)
 {
-    // TODO consider user libcrack to check this. 
-
     enum MIN_PASSWORD_LENGTH = 12;
-    bool valid = true;
 
-    if (password.length < MIN_PASSWORD_LENGTH)
+    auto reason = FascistCheck(password.toStringz(), CRACKLIB_DICTPATH);
+    if (reason != null)
     {
-        io.display("Password is too short\n");
-        valid = false;
+        diagnostic = fromStringz(reason).assumeUnique;
+        return false;
     }
 
-    if (!password.canFind!(c => c.isUpper))
-    {
-        io.display("Password does not contain uppercase letters\n");
-        valid = false;
-    }
-
-    if (!password.canFind!(c => c.isLower))
-    {
-        io.display("Password does not contain lowercase letters\n");
-        valid = false;
-    }
-
-    if (!password.canFind!(c => c.isDigit))
-    {
-        io.display("Password does not contain digits\n");
-        valid = false;
-    }
-
-    return valid;
+    return true;
 }
 

@@ -1,0 +1,6 @@
+doctype html
+html
+    head
+        title Login
+    body
+        p Welcome Home
